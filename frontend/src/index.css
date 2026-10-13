@@ -1,0 +1,192 @@
+:root {
+  --bg-base: #060913;
+  --bg-card: rgba(17, 28, 52, 0.75);
+  --neon-cyan: #00f2fe;
+  --neon-blue: #38bdf8;
+  --neon-purple: #a855f7;
+  --neon-green: #10b981;
+  --neon-red: #ef4444;
+  --neon-yellow: #f59e0b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-glow: rgba(0, 242, 254, 0.25);
+  --border-active: rgba(0, 242, 254, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: radial-gradient(circle at 15% 15%, #080e21 0%, #060913 60%, #03050a 100%);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Header */
+.header-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(6, 9, 19, 0.9);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-glow);
+  padding: 0.8rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.45rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #ffffff 0%, #00f2fe 50%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Tabs */
+.tab-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 10px 20px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tab-btn.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.25) 0%, rgba(168, 85, 247, 0.3) 100%);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.25);
+}
+
+/* HUD Cards */
+.hud-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glow);
+  border-radius: 16px;
+  padding: 1.6rem;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+  margin-bottom: 1.5rem;
+}
+
+.hud-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+  border-bottom: 1px solid rgba(0, 242, 254, 0.15);
+  padding-bottom: 8px;
+}
+
+/* Laser Scan Animation */
+.laser-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--neon-cyan), #ffffff, var(--neon-cyan), transparent);
+  box-shadow: 0 0 15px var(--neon-cyan), 0 0 30px var(--neon-cyan);
+  animation: laserSweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  z-index: 20;
+  pointer-events: none;
+}
+
+@keyframes laserSweep {
+  0% { top: 5%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 95%; opacity: 0; }
+}
+
+/* Neon Buttons */
+.btn-neon {
+  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+  border: none;
+  color: #030712;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+  transition: all 0.25s ease;
+}
+
+.btn-neon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(0, 242, 254, 0.7);
+}
+
+/* Patient Queue Card Styles */
+.patient-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.patient-card:hover {
+  border-color: var(--neon-cyan);
+  background: rgba(0, 242, 254, 0.08);
+}
+
+.patient-card.active {
+  border-color: var(--neon-cyan);
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%);
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+}
+
+/* Radiology Toolbar */
+.radio-tool-btn {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  color: #cbd5e1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.radio-tool-btn:hover, .radio-tool-btn.active {
+  background: rgba(0, 242, 254, 0.25);
+  color: #00f2fe;
+  border-color: #00f2fe;
+}
+
+/* Print Styles */
+@media print {
+  body * { visibility: hidden; }
+  .printable-report, .printable-report * { visibility: visible; }
+  .printable-report { position: absolute; left: 0; top: 0; width: 100%; color: #000; }
+  .no-print { display: none !important; }
+}
+

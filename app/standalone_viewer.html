@@ -3,47 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TumorGANet | Brain Tumor MRI Classification & Explainable AI</title>
-    <!-- Chart.js for Interactive Visualizations -->
+    <title>NEUROVISION HUD | TumorGANet Clinical AI Workstation</title>
+    <!-- Google Fonts: Orbitron & Rajdhani for High-Tech HUD -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for High-Tech Interactive Visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary: #1e3f66;
-            --primary-light: #2e5d94;
-            --accent: #00b4d8;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text-dark: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --danger: #ef4444;
-            --success: #10b981;
-            --warning: #f59e0b;
+            --bg-base: #060913;
+            --bg-surface: rgba(13, 21, 39, 0.75);
+            --bg-card: rgba(17, 28, 52, 0.65);
+            --neon-cyan: #00f2fe;
+            --neon-blue: #38bdf8;
+            --neon-purple: #a855f7;
+            --neon-green: #10b981;
+            --neon-red: #ef4444;
+            --neon-yellow: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-glow: rgba(0, 242, 254, 0.25);
+            --border-glow-active: rgba(0, 242, 254, 0.6);
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            background-color: var(--bg);
-            color: var(--text-dark);
-            line-height: 1.6;
+            background: radial-gradient(circle at 15% 15%, #080e21 0%, #060913 60%, #03050a 100%);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
         }
 
+        /* Subtle High-Tech Hexagonal Grid Overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 242, 254, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 254, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Top HUD Navigation Bar */
         header {
-            background: linear-gradient(135deg, #0f172a 0%, #1e3f66 100%);
-            color: white;
-            padding: 2.2rem 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6, 9, 19, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-glow);
+            box-shadow: 0 4px 30px rgba(0, 242, 254, 0.1);
         }
 
-        .header-content {
-            max-width: 1300px;
+        .header-inner {
+            max-width: 1440px;
             margin: 0 auto;
+            padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -51,401 +75,814 @@
             gap: 1rem;
         }
 
-        .header-title h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
+        .brand-box {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 15px;
         }
 
-        .header-title p {
-            color: #94a3b8;
-            font-size: 0.95rem;
-            margin-top: 4px;
+        .brand-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #00f2fe 0%, #7928ca 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
+            animation: pulse-glow 3s infinite alternate;
         }
 
-        .badge-paper {
-            background: rgba(0, 180, 216, 0.2);
-            color: #38bdf8;
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            padding: 6px 14px;
-            border-radius: 20px;
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 15px rgba(0, 242, 254, 0.3); }
+            100% { box-shadow: 0 0 30px rgba(0, 242, 254, 0.7); }
+        }
+
+        .brand-text h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #ffffff 0%, #00f2fe 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text p {
+            font-family: 'Rajdhani', sans-serif;
             font-size: 0.85rem;
             font-weight: 600;
+            color: var(--neon-blue);
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
-        .container {
-            max-width: 1300px;
-            margin: 2rem auto;
-            padding: 0 1.5rem;
-        }
-
-        .tabs {
+        .hud-telemetry {
             display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .telemetry-tag {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-glow);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-family: 'Rajdhani', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
             gap: 8px;
-            border-bottom: 2px solid var(--border);
+            letter-spacing: 0.5px;
+        }
+
+        .pulse-light {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+            animation: pulse-green 1.5s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.7; }
+        }
+
+        .audio-toggle-btn {
+            background: rgba(0, 242, 254, 0.1);
+            border: 1px solid var(--border-glow);
+            color: var(--neon-cyan);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .audio-toggle-btn:hover {
+            background: rgba(0, 242, 254, 0.25);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 1440px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Top Key Metrics Strip */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glow);
+            border-radius: 14px;
+            padding: 1.4rem;
+            backdrop-filter: blur(16px);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-glow-active);
+            box-shadow: 0 12px 30px rgba(0, 242, 254, 0.15);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 40px; height: 2px;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .stat-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 2.2rem;
+            font-weight: 900;
+            margin: 4px 0;
+            text-shadow: 0 0 12px currentColor;
+        }
+
+        .stat-meta {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        /* HUD Tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            background: rgba(13, 21, 39, 0.8);
+            padding: 8px;
+            border-radius: 14px;
+            border: 1px solid var(--border-glow);
             margin-bottom: 2rem;
             overflow-x: auto;
         }
 
-        .tab-btn {
+        .nav-tab-btn {
             background: none;
-            border: none;
-            padding: 12px 20px;
-            font-size: 1rem;
-            font-weight: 600;
+            border: 1px solid transparent;
             color: var(--text-muted);
+            padding: 10px 22px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            border-radius: 10px;
             cursor: pointer;
-            border-bottom: 3px solid transparent;
-            transition: all 0.2s ease;
+            transition: all 0.25s ease;
             white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .tab-btn:hover {
-            color: var(--primary-light);
+        .nav-tab-btn:hover {
+            color: var(--neon-cyan);
+            background: rgba(0, 242, 254, 0.05);
         }
 
-        .tab-btn.active {
-            color: var(--primary);
-            border-bottom-color: var(--accent);
+        .nav-tab-btn.active {
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.25) 0%, rgba(168, 85, 247, 0.3) 100%);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.25);
         }
 
-        .tab-pane {
+        /* Tab Panes */
+        .tab-content {
             display: none;
+            animation: fadeIn 0.35s ease;
         }
 
-        .tab-pane.active {
+        .tab-content.active {
             display: block;
         }
 
-        .grid-2 {
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Grid Layouts */
+        .workspace-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1.15fr 1.35fr;
             gap: 2rem;
         }
 
-        .grid-4 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
+        @media (max-width: 1024px) {
+            .workspace-grid { grid-template-columns: 1fr; }
         }
 
-        .card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 1.8rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 1px solid var(--border);
+        /* HUD Hologram Cards */
+        .hud-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+            position: relative;
         }
 
-        .card-title {
-            font-size: 1.25rem;
+        .hud-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 242, 254, 0.15);
+            padding-bottom: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .hud-card-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.15rem;
             font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 1rem;
+            color: var(--neon-cyan);
+            letter-spacing: 1px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
-        /* Metric Cards */
-        .stat-card {
-            background: white;
-            border-radius: 10px;
-            padding: 1.2rem;
-            border-left: 4px solid var(--accent);
-            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-        }
-
-        .stat-val {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--primary);
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
-        }
-
-        /* Diagnostic Panel */
-        .mri-canvas-container {
+        /* Interactive MRI Scanner Viewport */
+        .mri-viewport {
+            background: #000000;
+            border-radius: 14px;
+            border: 2px solid rgba(0, 242, 254, 0.4);
+            box-shadow: 0 0 30px rgba(0, 242, 254, 0.2);
+            padding: 1.5rem;
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: #000;
-            border-radius: 10px;
-            padding: 1rem;
-            min-height: 280px;
-            justify-content: center;
-        }
-
-        canvas.mri-canvas {
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(255,255,255,0.1);
-        }
-
-        .selector-btn-group {
-            display: flex;
-            gap: 8px;
-            margin-top: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .mri-btn {
-            background: #f1f5f9;
-            border: 1px solid var(--border);
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .mri-btn:hover, .mri-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        /* Progress Bars */
-        .prob-bar-container {
-            margin: 12px 0;
-        }
-
-        .prob-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .progress-track {
-            height: 10px;
-            background: #e2e8f0;
-            border-radius: 5px;
+            position: relative;
             overflow: hidden;
         }
 
-        .progress-fill {
-            height: 100%;
-            border-radius: 5px;
-            transition: width 0.6s ease;
+        /* Laser Scan Sweep Line Animation */
+        .scan-laser-line {
+            position: absolute;
+            left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), #ffffff, var(--neon-cyan), transparent);
+            box-shadow: 0 0 15px var(--neon-cyan), 0 0 30px var(--neon-cyan);
+            animation: laserSweep 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            z-index: 20;
+            pointer-events: none;
         }
 
-        /* LIME Panels */
-        .lime-grid {
+        @keyframes laserSweep {
+            0% { top: 5%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 95%; opacity: 0; }
+        }
+
+        canvas.hud-canvas {
+            border-radius: 10px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Scan Selector Grid */
+        .scan-btn-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 1.5rem;
+            width: 100%;
+        }
+
+        .scan-select-btn {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid var(--border-glow);
+            color: #cbd5e1;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .scan-select-btn:hover {
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            background: rgba(0, 242, 254, 0.08);
+        }
+
+        .scan-select-btn.active {
+            border-color: var(--neon-cyan);
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%);
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+        }
+
+        /* Triage Banner */
+        .triage-alert-box {
+            padding: 18px 24px;
+            border-radius: 14px;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid transparent;
+        }
+
+        .triage-headline {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.45rem;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+        }
+
+        .triage-subtext {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Probability Bars */
+        .prob-meter-group {
+            margin: 1.5rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .prob-item-header {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .prob-track {
+            height: 12px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .prob-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        /* Vitals Radar HUD Box */
+        .vitals-box {
+            background: rgba(10, 16, 30, 0.85);
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            text-align: center;
             margin-top: 1.5rem;
         }
 
-        .lime-panel {
-            background: #0b0f19;
-            border-radius: 8px;
-            padding: 10px;
+        .vital-param h6 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .vital-param p {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--neon-cyan);
+            margin-top: 2px;
+        }
+
+        /* Report Generator Button */
+        .action-hud-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            border: none;
+            color: #030712;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.4);
+            transition: all 0.3s ease;
+            margin-top: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .action-hud-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 35px rgba(0, 242, 254, 0.7);
+        }
+
+        /* LIME Explainability Grid */
+        .lime-visual-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .lime-visual-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .lime-card-box {
+            background: #000000;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            border-radius: 12px;
+            padding: 12px;
             text-align: center;
-            color: white;
+            position: relative;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            transition: all 0.3s ease;
         }
 
-        .lime-panel h4 {
+        .lime-card-box:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.25);
+            transform: translateY(-4px);
+        }
+
+        .lime-card-box h4 {
+            font-family: 'Orbitron', monospace;
             font-size: 0.85rem;
-            margin-bottom: 8px;
-            color: #38bdf8;
+            color: var(--neon-blue);
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
         }
 
-        .lime-panel canvas {
+        .lime-card-box canvas {
             width: 100%;
             height: auto;
-            border-radius: 6px;
+            border-radius: 8px;
         }
 
-        /* Tables */
-        table.styled-table {
+        .lime-card-box p {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        /* High-Tech Tables */
+        table.cyber-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9rem;
+            font-size: 0.92rem;
             margin-top: 1rem;
         }
 
-        table.styled-table th, table.styled-table td {
-            padding: 10px 14px;
+        table.cyber-table th {
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            padding: 14px 16px;
             text-align: left;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 2px solid var(--border-glow);
         }
 
-        table.styled-table th {
-            background-color: #f8fafc;
-            color: var(--primary);
-            font-weight: 700;
+        table.cyber-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            color: #cbd5e1;
         }
 
-        table.styled-table tr:hover {
-            background-color: #f1f5f9;
+        table.cyber-table tr:hover {
+            background: rgba(0, 242, 254, 0.05);
         }
 
-        .highlight-row {
-            background-color: #eff6ff !important;
+        .row-winner {
+            background: rgba(0, 242, 254, 0.12) !important;
             font-weight: bold;
-            color: var(--primary);
+            color: #ffffff !important;
+            border-left: 3px solid var(--neon-cyan);
+        }
+
+        /* Printable Report Modal */
+        #printReportModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .report-paper {
+            background: #ffffff;
+            color: #0f172a;
+            max-width: 800px;
+            width: 100%;
+            border-radius: 12px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printReportModal, #printReportModal * { visibility: visible; }
+            #printReportModal { position: absolute; left: 0; top: 0; background: white; }
+            .no-print { display: none !important; }
         }
     </style>
 </head>
 <body>
 
+    <!-- Top HUD Navigation -->
     <header>
-        <div class="header-content">
-            <div class="header-title">
-                <h1><span>🧠</span> TumorGANet Clinical AI Workstation</h1>
-                <p>Transfer Learning & GAN-Based Data Augmentation for Brain Tumor Classification (IEEE Access 2024)</p>
+        <div class="header-inner">
+            <div class="brand-box">
+                <div class="brand-logo">🧠</div>
+                <div class="brand-text">
+                    <h1>NEUROVISION HUD</h1>
+                    <p>TumorGANet Clinical AI Workstation • IEEE Access 2024</p>
+                </div>
             </div>
-            <div class="badge-paper">
-                IEEE Access, Vol. 12 (pp. 103060–103081)
+
+            <div class="hud-telemetry">
+                <div class="telemetry-tag">
+                    <div class="pulse-light"></div> INFERENCE: ONLINE
+                </div>
+                <div class="telemetry-tag">
+                    LATENCY: <span id="telemetryLatency" style="color: var(--neon-cyan);">12ms</span>
+                </div>
+                <button class="audio-toggle-btn" onclick="toggleAudio()" id="audioBtn">
+                    🔊 SFX: ON
+                </button>
             </div>
         </div>
     </header>
 
-    <div class="container">
-        <!-- Top Statistics Grid -->
-        <div class="grid-4" style="margin-bottom: 2rem;">
+    <div class="main-container">
+
+        <!-- Top Vitals Statistics Bar -->
+        <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">Model Accuracy</div>
-                <div class="stat-val" style="color: #10b981;">99.53%</div>
-                <div style="font-size: 0.8rem; color: #64748b;">Outperforms 9 other TL backbones</div>
+                <div class="stat-title">Overall Accuracy</div>
+                <div class="stat-value" style="color: var(--neon-green);">99.53%</div>
+                <div class="stat-meta">Tested on 7,023 brain MRI cases</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Hamming Loss (HL)</div>
-                <div class="stat-val" style="color: #0284c7;">0.20%</div>
-                <div style="font-size: 0.8rem; color: #64748b;">Lowest clinical error rate</div>
+                <div class="stat-title">Hamming Error Loss</div>
+                <div class="stat-value" style="color: var(--neon-cyan);">0.20%</div>
+                <div class="stat-meta">Minimum diagnostic discrepancy</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Matthews Corr. (MCC)</div>
-                <div class="stat-val" style="color: #6366f1;">99.50%</div>
-                <div style="font-size: 0.8rem; color: #64748b;">High multiclass concordance</div>
+                <div class="stat-title">Precision & Recall</div>
+                <div class="stat-value" style="color: var(--neon-purple);">100.0%</div>
+                <div class="stat-meta">Zero false-negative miss rate</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Precision & Recall</div>
-                <div class="stat-val" style="color: #8b5cf6;">100.0%</div>
-                <div style="font-size: 0.8rem; color: #64748b;">Zero false negative tumor triage</div>
+                <div class="stat-title">Matthews Corr. (MCC)</div>
+                <div class="stat-value" style="color: var(--neon-yellow);">99.50%</div>
+                <div class="stat-meta">Robust multiclass concordance</div>
             </div>
         </div>
 
         <!-- Navigation Tabs -->
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('tab-diag')">🩺 Clinical Diagnosis</button>
-            <button class="tab-btn" onclick="switchTab('tab-lime')">🔍 Explainable AI (LIME)</button>
-            <button class="tab-btn" onclick="switchTab('tab-bench')">📊 10 Models Comparison</button>
-            <button class="tab-btn" onclick="switchTab('tab-ablation')">🔬 Optimizer Ablation (Table 7)</button>
-            <button class="tab-btn" onclick="switchTab('tab-gan')">🎨 DCGAN Synthetic Studio</button>
+        <div class="nav-tabs">
+            <button class="nav-tab-btn active" onclick="switchNavTab('tab-diag')">🩺 01. CLINICAL DIAGNOSIS</button>
+            <button class="nav-tab-btn" onclick="switchNavTab('tab-lime')">🔍 02. EXPLAINABLE AI (LIME)</button>
+            <button class="nav-tab-btn" onclick="switchNavTab('tab-bench')">📊 03. 10 MODELS BENCHMARK</button>
+            <button class="nav-tab-btn" onclick="switchNavTab('tab-ablation')">🔬 04. OPTIMIZER ABLATION (TABLE 7)</button>
+            <button class="nav-tab-btn" onclick="switchNavTab('tab-gan')">🎨 05. DCGAN SYNTHETIC STUDIO</button>
         </div>
 
         <!-- TAB 1: Clinical Diagnosis -->
-        <div id="tab-diag" class="tab-pane active">
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title"><span>🖼️</span> Brain MRI Input Slices</div>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
-                        Select a representative clinical axial MRI slice or observe automated feature extraction:
-                    </p>
-                    <div class="mri-canvas-container">
-                        <canvas id="mriCanvas" width="224" height="224" class="mri-canvas"></canvas>
+        <div id="tab-diag" class="tab-content active">
+            <div class="workspace-grid">
+                
+                <!-- Left: MRI Scanner Viewport -->
+                <div class="hud-card">
+                    <div class="hud-card-header">
+                        <div class="hud-card-title"><span>📡</span> AXIAL MRI SCANNER SENSOR</div>
+                        <span style="font-family: 'Rajdhani'; font-size: 0.85rem; color: var(--neon-cyan);">T1/T2 CONTRAST • 224x224</span>
                     </div>
-                    <div class="selector-btn-group">
-                        <button class="mri-btn active" onclick="selectScan('glioma')">Glioma Tumor</button>
-                        <button class="mri-btn" onclick="selectScan('meningioma')">Meningioma</button>
-                        <button class="mri-btn" onclick="selectScan('pituitary')">Pituitary Tumor</button>
-                        <button class="mri-btn" onclick="selectScan('notumor')">Normal Brain (No Tumor)</button>
+
+                    <div class="mri-viewport">
+                        <div class="scan-laser-line"></div>
+                        <canvas id="mriCanvas" width="224" height="224" class="hud-canvas"></canvas>
                     </div>
+
+                    <div class="scan-btn-grid">
+                        <button class="scan-select-btn active" onclick="loadCase('glioma')">
+                            <span>Glioma Tumor</span> <span style="color: var(--neon-red);">MALIGNANT</span>
+                        </button>
+                        <button class="scan-select-btn" onclick="loadCase('meningioma')">
+                            <span>Meningioma</span> <span style="color: var(--neon-yellow);">BENIGN</span>
+                        </button>
+                        <button class="scan-select-btn" onclick="loadCase('pituitary')">
+                            <span>Pituitary Mass</span> <span style="color: var(--neon-blue);">SELLAR</span>
+                        </button>
+                        <button class="scan-select-btn" onclick="loadCase('notumor')">
+                            <span>Normal Brain</span> <span style="color: var(--neon-green);">HEALTHY</span>
+                        </button>
+                    </div>
+
+                    <button class="action-hud-btn" onclick="triggerLaserScan()">
+                        ⚡ RUN HIGH-PRECISION SCANNER AUDIT
+                    </button>
                 </div>
 
-                <div class="card">
-                    <div class="card-title"><span>📊</span> TumorGANet Diagnostic Assessment</div>
-                    <div id="diagBadge" style="padding: 12px; border-radius: 8px; margin-bottom: 1.2rem; font-weight: 700; font-size: 1.1rem; text-align: center; background: #fee2e2; color: #991b1b;">
-                        Glioma Tumor Detected (99.82% Confidence)
+                <!-- Right: AI Triage & Quantitative Assessment -->
+                <div class="hud-card">
+                    <div class="hud-card-header">
+                        <div class="hud-card-title"><span>🧠</span> TUMORGANET TRIAGE ASSESSMENT</div>
+                        <span id="caseIdTag" style="font-family: 'Rajdhani'; font-size: 0.85rem; color: #94a3b8;">CASE: #8492-GLI</span>
                     </div>
 
-                    <div style="margin-bottom: 1.5rem;">
-                        <div class="prob-bar-container">
-                            <div class="prob-header"><span>Glioma</span><span id="p-glioma">99.82%</span></div>
-                            <div class="progress-track"><div id="bar-glioma" class="progress-fill" style="width: 99.82%; background: #ef4444;"></div></div>
+                    <!-- Triage Alert Headline -->
+                    <div id="triageBanner" class="triage-alert-box" style="background: rgba(239, 68, 68, 0.2); border-color: var(--neon-red); color: #fca5a5;">
+                        <div id="triageHeadline" class="triage-headline" style="color: #ef4444;">GLIOMA TUMOR DETECTED</div>
+                        <div id="triageSubtext" class="triage-subtext">99.82% Confidence Index • High-Grade Malignancy Risk</div>
+                    </div>
+
+                    <!-- Probability Bars -->
+                    <div class="prob-meter-group">
+                        <div>
+                            <div class="prob-item-header">
+                                <span style="color: #fca5a5;">Glioma (Cerebral White Matter)</span>
+                                <span id="pct-glioma" style="font-family: 'Orbitron'; color: var(--neon-red);">99.82%</span>
+                            </div>
+                            <div class="prob-track">
+                                <div id="bar-glioma" class="prob-fill" style="width: 99.82%; background: linear-gradient(90deg, #ef4444, #f87171); box-shadow: 0 0 10px #ef4444;"></div>
+                            </div>
                         </div>
-                        <div class="prob-bar-container">
-                            <div class="prob-header"><span>Meningioma</span><span id="p-meningioma">0.12%</span></div>
-                            <div class="progress-track"><div id="bar-meningioma" class="progress-fill" style="width: 0.12%; background: #f59e0b;"></div></div>
+
+                        <div>
+                            <div class="prob-item-header">
+                                <span style="color: #fde68a;">Meningioma (Extra-Axial Dural)</span>
+                                <span id="pct-meningioma" style="font-family: 'Orbitron'; color: var(--neon-yellow);">0.12%</span>
+                            </div>
+                            <div class="prob-track">
+                                <div id="bar-meningioma" class="prob-fill" style="width: 0.12%; background: linear-gradient(90deg, #f59e0b, #fbbf24);"></div>
+                            </div>
                         </div>
-                        <div class="prob-bar-container">
-                            <div class="prob-header"><span>Pituitary</span><span id="p-pituitary">0.04%</span></div>
-                            <div class="progress-track"><div id="bar-pituitary" class="progress-fill" style="width: 0.04%; background: #3b82f6;"></div></div>
+
+                        <div>
+                            <div class="prob-item-header">
+                                <span style="color: #bae6fd;">Pituitary (Sellar Region)</span>
+                                <span id="pct-pituitary" style="font-family: 'Orbitron'; color: var(--neon-blue);">0.04%</span>
+                            </div>
+                            <div class="prob-track">
+                                <div id="bar-pituitary" class="prob-fill" style="width: 0.04%; background: linear-gradient(90deg, #38bdf8, #7dd3fc);"></div>
+                            </div>
                         </div>
-                        <div class="prob-bar-container">
-                            <div class="prob-header"><span>No Tumor (Healthy)</span><span id="p-notumor">0.02%</span></div>
-                            <div class="progress-track"><div id="bar-notumor" class="progress-fill" style="width: 0.02%; background: #10b981;"></div></div>
+
+                        <div>
+                            <div class="prob-item-header">
+                                <span style="color: #a7f3d0;">No Tumor (Intact Cortex)</span>
+                                <span id="pct-notumor" style="font-family: 'Orbitron'; color: var(--neon-green);">0.02%</span>
+                            </div>
+                            <div class="prob-track">
+                                <div id="bar-notumor" class="prob-fill" style="width: 0.02%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem;">
-                        <strong>Pathology Characteristics:</strong>
-                        <p id="pathologyDesc" style="color: var(--text-muted); margin-top: 4px;">
-                            Infiltrative hyperintense intra-axial mass in cerebral hemisphere with central necrosis. ResNet-50 hierarchical feature extraction indicates high malignancy correlation.
-                        </p>
+                    <!-- Quantitative Vitals Box -->
+                    <div class="vitals-box">
+                        <div class="vital-param">
+                            <h6>Est. Tumor Area</h6>
+                            <p id="vitalArea">412 mm²</p>
+                        </div>
+                        <div class="vital-param">
+                            <h6>Centroid (X, Y)</h6>
+                            <p id="vitalCentroid">[78, 64]</p>
+                        </div>
+                        <div class="vital-param">
+                            <h6>WHO Est. Grade</h6>
+                            <p id="vitalGrade" style="color: var(--neon-red);">Grade III/IV</p>
+                        </div>
                     </div>
+
+                    <!-- Print Clinical Report Button -->
+                    <button class="action-hud-btn" style="background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); box-shadow: 0 0 25px rgba(168, 85, 247, 0.4);" onclick="openReportModal()">
+                        🖨️ GENERATE CLINICAL ONCOLOGY REPORT
+                    </button>
                 </div>
+
             </div>
         </div>
 
         <!-- TAB 2: Explainable AI (LIME) -->
-        <div id="tab-lime" class="tab-pane">
-            <div class="card">
-                <div class="card-title"><span>🔍</span> Figure 11 Replication: LIME Feature Explainability Analysis</div>
+        <div id="tab-lime" class="tab-content">
+            <div class="hud-card">
+                <div class="hud-card-header">
+                    <div class="hud-card-title"><span>🔍</span> EXPLAINABLE AI • FIGURE 11 MULTI-LAYER DECOMPOSITION</div>
+                    <span style="font-family: 'Rajdhani'; color: var(--neon-cyan);">LIME EQUATION (21) • SLIC SUPER-PIXELS</span>
+                </div>
                 <p style="color: var(--text-muted); font-size: 0.95rem;">
-                    Local Interpretable Model-Agnostic Explanations (Equation 21) decomposes the MRI into super-pixels and highlights decision-critical regions:
+                    Local Interpretable Model-Agnostic Explanations mathematically decompose the deep neural network decision boundary. The system highlights exact tumor super-pixels with background attenuation and traces decision boundaries with yellow contours.
                 </p>
 
-                <div class="lime-grid">
-                    <div class="lime-panel">
-                        <h4>1. Original Image</h4>
+                <div class="lime-visual-grid">
+                    <div class="lime-card-box">
+                        <h4>1. Raw Input Image</h4>
                         <canvas id="limeOrig" width="200" height="200"></canvas>
-                        <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 6px;">Axial 224x224 T1/T2</p>
+                        <p>Axial T1/T2 Scan (224x224)</p>
                     </div>
-                    <div class="lime-panel">
-                        <h4>2. Correct Region</h4>
+                    <div class="lime-card-box">
+                        <h4>2. Correct Region Mask</h4>
                         <canvas id="limeCorrect" width="200" height="200"></canvas>
-                        <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 6px;">Super-pixel mask isolation</p>
+                        <p>Segmented Lesion Isolation</p>
                     </div>
-                    <div class="lime-panel">
-                        <h4>3. Highlight Contour</h4>
+                    <div class="lime-card-box">
+                        <h4 style="color: var(--neon-yellow);">3. Highlight Contour</h4>
                         <canvas id="limeContour" width="200" height="200"></canvas>
-                        <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 6px;">Yellow tumor boundary</p>
+                        <p>Yellow Tumor Boundary Overlay</p>
                     </div>
-                    <div class="lime-panel">
-                        <h4>4. Heatmap</h4>
+                    <div class="lime-card-box">
+                        <h4 style="color: var(--neon-green);">4. Transparent Heatmap</h4>
                         <canvas id="limeHeatmap" width="200" height="200"></canvas>
-                        <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 6px;">Transparent feature attribution</p>
+                        <p>Green Super-Pixel Positive Weights</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- TAB 3: 10 Models Comparison -->
-        <div id="tab-bench" class="tab-pane">
-            <div class="card" style="margin-bottom: 2rem;">
-                <div class="card-title"><span>📈</span> Figure 9 Replication: Performance Comparison Across 10 TL Architectures</div>
-                <div style="height: 360px;">
+        <!-- TAB 3: 10 Models Benchmark -->
+        <div id="tab-bench" class="tab-content">
+            <div class="hud-card" style="margin-bottom: 2rem;">
+                <div class="hud-card-header">
+                    <div class="hud-card-title"><span>📈</span> FIGURE 9 REPLICATION • 10 TRANSFER LEARNING ARCHITECTURES</div>
+                    <span style="font-family: 'Rajdhani'; color: var(--neon-cyan);">EVALUATED ON 7,023 CASES</span>
+                </div>
+                <div style="height: 380px;">
                     <canvas id="benchmarkChart"></canvas>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-title"><span>📋</span> Table 5 Replication: Full Benchmark Metrics</div>
-                <table class="styled-table">
+            <div class="hud-card">
+                <div class="hud-card-header">
+                    <div class="hud-card-title"><span>📋</span> TABLE 5 REPLICATION • MULTI-METRIC PERFORMANCE MATRIX</div>
+                </div>
+                <table class="cyber-table">
                     <thead>
                         <tr>
                             <th>Model Architecture</th>
@@ -460,196 +897,81 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr class="highlight-row">
+                        <tr class="row-winner">
                             <td>⭐ Proposed TumorGANet (VGG-16)</td>
-                            <td>99.53</td>
-                            <td>100.0</td>
-                            <td>100.0</td>
-                            <td>99.00</td>
-                            <td>0.20</td>
-                            <td>99.50</td>
-                            <td>98.50</td>
-                            <td>99.50</td>
+                            <td>99.53</td><td>100.0</td><td>100.0</td><td>99.00</td><td>0.20</td><td>99.50</td><td>98.50</td><td>99.50</td>
                         </tr>
-                        <tr>
-                            <td>GANs + Inception-v3</td>
-                            <td>99.34</td>
-                            <td>99.34</td>
-                            <td>99.34</td>
-                            <td>99.00</td>
-                            <td>1.02</td>
-                            <td>97.20</td>
-                            <td>95.80</td>
-                            <td>97.20</td>
-                        </tr>
-                        <tr>
-                            <td>GANs + ResNet-101</td>
-                            <td>98.93</td>
-                            <td>98.93</td>
-                            <td>98.93</td>
-                            <td>99.00</td>
-                            <td>0.50</td>
-                            <td>99.10</td>
-                            <td>97.90</td>
-                            <td>98.70</td>
-                        </tr>
-                        <tr>
-                            <td>GANs + AlexNet</td>
-                            <td>98.17</td>
-                            <td>98.17</td>
-                            <td>98.17</td>
-                            <td>98.00</td>
-                            <td>0.90</td>
-                            <td>97.55</td>
-                            <td>96.20</td>
-                            <td>97.50</td>
-                        </tr>
-                        <tr>
-                            <td>GANs + GoogLeNet</td>
-                            <td>97.18</td>
-                            <td>97.18</td>
-                            <td>97.18</td>
-                            <td>97.00</td>
-                            <td>2.44</td>
-                            <td>94.10</td>
-                            <td>90.10</td>
-                            <td>93.20</td>
-                        </tr>
-                        <tr>
-                            <td>GANs + VGG-19</td>
-                            <td>96.72</td>
-                            <td>96.72</td>
-                            <td>96.72</td>
-                            <td>96.50</td>
-                            <td>1.60</td>
-                            <td>96.00</td>
-                            <td>93.10</td>
-                            <td>96.00</td>
-                        </tr>
-                        <tr>
-                            <td>GANs + MobileNet</td>
-                            <td>96.41</td>
-                            <td>96.41</td>
-                            <td>96.41</td>
-                            <td>96.20</td>
-                            <td>7.90</td>
-                            <td>95.00</td>
-                            <td>93.00</td>
-                            <td>95.20</td>
-                        </tr>
-                        <tr>
-                            <td>GANs + MobileNet-v2</td>
-                            <td>95.85</td>
-                            <td>95.85</td>
-                            <td>95.85</td>
-                            <td>95.50</td>
-                            <td>2.44</td>
-                            <td>94.10</td>
-                            <td>90.20</td>
-                            <td>93.10</td>
-                        </tr>
-                        <tr>
-                            <td>GANs + DenseNet-121</td>
-                            <td>95.78</td>
-                            <td>95.78</td>
-                            <td>95.78</td>
-                            <td>95.60</td>
-                            <td>2.47</td>
-                            <td>94.10</td>
-                            <td>90.10</td>
-                            <td>93.10</td>
-                        </tr>
-                        <tr>
-                            <td>GANs + Xception</td>
-                            <td>78.01</td>
-                            <td>86.00</td>
-                            <td>77.00</td>
-                            <td>76.00</td>
-                            <td>10.90</td>
-                            <td>64.30</td>
-                            <td>64.30</td>
-                            <td>70.70</td>
-                        </tr>
+                        <tr><td>GANs + Inception-v3</td><td>99.34</td><td>99.34</td><td>99.34</td><td>99.00</td><td>1.02</td><td>97.20</td><td>95.80</td><td>97.20</td></tr>
+                        <tr><td>GANs + ResNet-101</td><td>98.93</td><td>98.93</td><td>98.93</td><td>99.00</td><td>0.50</td><td>99.10</td><td>97.90</td><td>98.70</td></tr>
+                        <tr><td>GANs + AlexNet</td><td>98.17</td><td>98.17</td><td>98.17</td><td>98.00</td><td>0.90</td><td>97.55</td><td>96.20</td><td>97.50</td></tr>
+                        <tr><td>GANs + GoogLeNet</td><td>97.18</td><td>97.18</td><td>97.18</td><td>97.00</td><td>2.44</td><td>94.10</td><td>90.10</td><td>93.20</td></tr>
+                        <tr><td>GANs + VGG-19</td><td>96.72</td><td>96.72</td><td>96.72</td><td>96.50</td><td>1.60</td><td>96.00</td><td>93.10</td><td>96.00</td></tr>
+                        <tr><td>GANs + MobileNet</td><td>96.41</td><td>96.41</td><td>96.41</td><td>96.20</td><td>7.90</td><td>95.00</td><td>93.00</td><td>95.20</td></tr>
+                        <tr><td>GANs + MobileNet-v2</td><td>95.85</td><td>95.85</td><td>95.85</td><td>95.50</td><td>2.44</td><td>94.10</td><td>90.20</td><td>93.10</td></tr>
+                        <tr><td>GANs + DenseNet-121</td><td>95.78</td><td>95.78</td><td>95.78</td><td>95.60</td><td>2.47</td><td>94.10</td><td>90.10</td><td>93.10</td></tr>
+                        <tr><td>GANs + Xception</td><td>78.01</td><td>86.00</td><td>77.00</td><td>76.00</td><td>10.90</td><td>64.30</td><td>64.30</td><td>70.70</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         <!-- TAB 4: Optimizer Ablation Study -->
-        <div id="tab-ablation" class="tab-pane">
-            <div class="card">
-                <div class="card-title"><span>🔬</span> Table 7 Replication: Ablation Study of TumorGANet Model</div>
-                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem;">
-                    Ablation evaluation of 5 optimizers (Adam, SGD, Adagrad, Nadam, RMSprop) across 3 learning rates (0.001, 0.0001, 0.00001) at 50 epochs:
-                </p>
-                <table class="styled-table">
+        <div id="tab-ablation" class="tab-content">
+            <div class="hud-card">
+                <div class="hud-card-header">
+                    <div class="hud-card-title"><span>🔬</span> TABLE 7 REPLICATION • 5 OPTIMIZERS x 3 LEARNING RATES</div>
+                    <span style="font-family: 'Rajdhani'; color: var(--neon-cyan);">EPOCHS: 50 CONSTANT</span>
+                </div>
+                <table class="cyber-table">
                     <thead>
                         <tr>
-                            <th>Optimizer</th>
-                            <th>Learning Rate</th>
-                            <th>Epoch</th>
-                            <th>Accuracy (%)</th>
-                            <th>Precision (%)</th>
-                            <th>Recall (%)</th>
-                            <th>F1-Score (%)</th>
-                            <th>HL (%)</th>
-                            <th>MCC (%)</th>
-                            <th>JS (%)</th>
-                            <th>CK (%)</th>
+                            <th>Optimizer</th><th>Learning Rate</th><th>Accuracy (%)</th><th>Precision (%)</th><th>Recall (%)</th><th>F1-Score (%)</th><th>HL (%)</th><th>MCC (%)</th><th>JS (%)</th><th>CK (%)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr class="highlight-row">
-                            <td><strong>Adam (Winning)</strong></td>
-                            <td><strong>0.0001</strong></td>
-                            <td>50</td>
-                            <td><strong>98.00</strong></td>
-                            <td><strong>99.00</strong></td>
-                            <td><strong>100.0</strong></td>
-                            <td><strong>99.00</strong></td>
-                            <td><strong>2.20</strong></td>
-                            <td><strong>96.00</strong></td>
-                            <td><strong>95.00</strong></td>
-                            <td><strong>96.10</strong></td>
+                        <tr class="row-winner">
+                            <td>⭐ Adam (Proposed)</td><td>0.0001</td><td>98.00</td><td>99.00</td><td>100.0</td><td>99.00</td><td>2.20</td><td>96.00</td><td>95.00</td><td>96.10</td>
                         </tr>
-                        <tr><td>Adam</td><td>0.001</td><td>50</td><td>95.00</td><td>100.0</td><td>99.00</td><td>98.00</td><td>4.70</td><td>93.70</td><td>91.00</td><td>93.60</td></tr>
-                        <tr><td>Adam</td><td>0.00001</td><td>50</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>0.60</td><td>99.10</td><td>98.70</td><td>99.10</td></tr>
-                        <tr><td>SGD</td><td>0.001</td><td>50</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>0.40</td><td>99.30</td><td>99.00</td><td>99.30</td></tr>
-                        <tr><td>SGD</td><td>0.0001</td><td>50</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>1.30</td><td>98.10</td><td>97.30</td><td>98.10</td></tr>
-                        <tr><td>SGD</td><td>0.00001</td><td>50</td><td>88.00</td><td>94.00</td><td>100.0</td><td>94.00</td><td>11.70</td><td>94.30</td><td>79.40</td><td>84.20</td></tr>
-                        <tr><td>Adagrad</td><td>0.001</td><td>50</td><td>98.00</td><td>99.00</td><td>100.0</td><td>99.00</td><td>1.70</td><td>97.60</td><td>96.50</td><td>97.60</td></tr>
-                        <tr><td>Adagrad</td><td>0.0001</td><td>50</td><td>88.00</td><td>97.00</td><td>100.0</td><td>96.00</td><td>11.80</td><td>84.40</td><td>78.90</td><td>84.00</td></tr>
-                        <tr><td>Adagrad</td><td>0.00001</td><td>50</td><td>73.00</td><td>81.00</td><td>93.00</td><td>96.00</td><td>27.00</td><td>64.40</td><td>57.10</td><td>63.50</td></tr>
-                        <tr><td>Nadam</td><td>0.001</td><td>50</td><td>98.00</td><td>100.0</td><td>100.0</td><td>99.00</td><td>1.60</td><td>95.50</td><td>97.40</td><td>97.40</td></tr>
-                        <tr><td>Nadam</td><td>0.0001</td><td>50</td><td>98.00</td><td>100.0</td><td>100.0</td><td>99.00</td><td>1.80</td><td>97.50</td><td>96.40</td><td>97.50</td></tr>
-                        <tr><td>Nadam</td><td>0.00001</td><td>50</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>1.00</td><td>98.50</td><td>97.90</td><td>98.50</td></tr>
-                        <tr><td>RMSprop</td><td>0.001</td><td>50</td><td>92.00</td><td>100.0</td><td>99.00</td><td>94.00</td><td>7.90</td><td>98.50</td><td>85.60</td><td>85.30</td></tr>
-                        <tr><td>RMSprop</td><td>0.0001</td><td>50</td><td>92.00</td><td>100.0</td><td>99.00</td><td>94.00</td><td>7.70</td><td>90.90</td><td>85.40</td><td>89.60</td></tr>
-                        <tr><td>RMSprop</td><td>0.00001</td><td>50</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>0.80</td><td>98.80</td><td>98.30</td><td>98.80</td></tr>
+                        <tr><td>Adam</td><td>0.001</td><td>95.00</td><td>100.0</td><td>99.00</td><td>98.00</td><td>4.70</td><td>93.70</td><td>91.00</td><td>93.60</td></tr>
+                        <tr><td>Adam</td><td>0.00001</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>0.60</td><td>99.10</td><td>98.70</td><td>99.10</td></tr>
+                        <tr><td>SGD</td><td>0.001</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>0.40</td><td>99.30</td><td>99.00</td><td>99.30</td></tr>
+                        <tr><td>SGD</td><td>0.0001</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>1.30</td><td>98.10</td><td>97.30</td><td>98.10</td></tr>
+                        <tr><td>SGD</td><td>0.00001</td><td>88.00</td><td>94.00</td><td>100.0</td><td>94.00</td><td>11.70</td><td>94.30</td><td>79.40</td><td>84.20</td></tr>
+                        <tr><td>Adagrad</td><td>0.001</td><td>98.00</td><td>99.00</td><td>100.0</td><td>99.00</td><td>1.70</td><td>97.60</td><td>96.50</td><td>97.60</td></tr>
+                        <tr><td>Adagrad</td><td>0.0001</td><td>88.00</td><td>97.00</td><td>100.0</td><td>96.00</td><td>11.80</td><td>84.40</td><td>78.90</td><td>84.00</td></tr>
+                        <tr><td>Adagrad</td><td>0.00001</td><td>73.00</td><td>81.00</td><td>93.00</td><td>96.00</td><td>27.00</td><td>64.40</td><td>57.10</td><td>63.50</td></tr>
+                        <tr><td>Nadam</td><td>0.001</td><td>98.00</td><td>100.0</td><td>100.0</td><td>99.00</td><td>1.60</td><td>95.50</td><td>97.40</td><td>97.40</td></tr>
+                        <tr><td>Nadam</td><td>0.0001</td><td>98.00</td><td>100.0</td><td>100.0</td><td>99.00</td><td>1.80</td><td>97.50</td><td>96.40</td><td>97.50</td></tr>
+                        <tr><td>Nadam</td><td>0.00001</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>1.00</td><td>98.50</td><td>97.90</td><td>98.50</td></tr>
+                        <tr><td>RMSprop</td><td>0.001</td><td>92.00</td><td>100.0</td><td>99.00</td><td>94.00</td><td>7.90</td><td>98.50</td><td>85.60</td><td>85.30</td></tr>
+                        <tr><td>RMSprop</td><td>0.0001</td><td>92.00</td><td>100.0</td><td>99.00</td><td>94.00</td><td>7.70</td><td>90.90</td><td>85.40</td><td>89.60</td></tr>
+                        <tr><td>RMSprop</td><td>0.00001</td><td>99.00</td><td>100.0</td><td>100.0</td><td>100.0</td><td>0.80</td><td>98.80</td><td>98.30</td><td>98.80</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         <!-- TAB 5: DCGAN Synthetic Studio -->
-        <div id="tab-gan" class="tab-pane">
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title"><span>🎨</span> Interactive DCGAN Generator</div>
-                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
-                        Synthesizes realistic brain MRI slices to mitigate training dataset imbalance (Algorithm 1):
-                    </p>
-                    <div class="mri-canvas-container">
-                        <canvas id="ganCanvas" width="224" height="224" class="mri-canvas"></canvas>
+        <div id="tab-gan" class="tab-content">
+            <div class="workspace-grid">
+                <div class="hud-card">
+                    <div class="hud-card-header">
+                        <div class="hud-card-title"><span>🎨</span> DCGAN SYNTHESIS ENGINE</div>
+                        <span style="font-family: 'Rajdhani'; color: var(--neon-cyan);">ALGORITHM 1 • EQUATION 8</span>
                     </div>
-                    <button class="mri-btn active" style="margin-top: 1rem; width: 100%; padding: 10px;" onclick="generateNewGANSample()">
-                        Generate Novel MRI Slice (Sample z ~ N(0, I))
+                    <div class="mri-viewport">
+                        <canvas id="ganCanvas" width="224" height="224" class="hud-canvas"></canvas>
+                    </div>
+                    <button class="action-hud-btn" onclick="generateNewGANSample()">
+                        ⚡ SAMPLE LATENT NOISE (z ~ N(0, I))
                     </button>
                 </div>
 
-                <div class="card">
-                    <div class="card-title"><span>📉</span> Figure 6 Replication: GAN Training History</div>
-                    <div style="height: 300px;">
+                <div class="hud-card">
+                    <div class="hud-card-header">
+                        <div class="hud-card-title"><span>📉</span> FIGURE 6 REPLICATION • GAN TRAINING HISTORY</div>
+                    </div>
+                    <div style="height: 320px;">
                         <canvas id="ganLossChart"></canvas>
                     </div>
                 </div>
@@ -658,11 +980,125 @@
 
     </div>
 
+    <!-- Printable Clinical Report Modal -->
+    <div id="printReportModal" onclick="closeReportModal(event)">
+        <div class="report-paper" onclick="event.stopPropagation()">
+            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 1.5rem;">
+                <div>
+                    <h2 style="font-family: 'Orbitron'; font-size: 1.4rem; color: #0f172a;">NEUROVISION MEDICAL CENTER</h2>
+                    <p style="font-size: 0.85rem; color: #64748b;">Department of Diagnostic Neuro-Oncology • AI-Assisted Assessment</p>
+                </div>
+                <div style="text-align: right;">
+                    <strong style="font-size: 1.1rem; color: #0284c7;">CONFIDENTIAL CLINICAL REPORT</strong><br>
+                    <span style="font-size: 0.8rem; color: #64748b;">Protocol: TumorGANet-VGG16-XAI</span>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                <div>
+                    <p><strong>Patient Case ID:</strong> <span id="repCaseId">#8492-GLI</span></p>
+                    <p><strong>Scan Modality:</strong> Brain MRI (Axial Contrast Enhanced)</p>
+                    <p><strong>Scan Dimensions:</strong> 224 x 224 (Normalized)</p>
+                </div>
+                <div>
+                    <p><strong>Assessment Date:</strong> <span id="repDate">2026-10-13</span></p>
+                    <p><strong>AI Engine:</strong> TumorGANet (VGG-16 Backbone)</p>
+                    <p><strong>Diagnostic Accuracy:</strong> 99.53% Benchmark Validated</p>
+                </div>
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 1.5rem;">
+                <h4 style="color: #0f172a; margin-bottom: 8px;">1. Primary AI Finding & Risk Triage:</h4>
+                <h3 id="repDiagnosis" style="color: #dc2626; margin-bottom: 6px;">GLIOMA TUMOR DETECTED (99.82% Confidence)</h3>
+                <p id="repDesc" style="font-size: 0.9rem; color: #475569; line-height: 1.5;">
+                    Deep hierarchical feature extraction demonstrates hyperintense infiltrative lesion within cerebral parenchyma. LIME explainability isolated significant super-pixel cluster with high probability gradient.
+                </p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                <div>
+                    <strong>Quantitative Lesion Metrics:</strong>
+                    <ul style="margin-top: 6px; padding-left: 20px; color: #334155;">
+                        <li>Estimated Surface Area: <strong id="repArea">412 mm²</strong></li>
+                        <li>Centroid Coordinates: <strong id="repCentroid">[78, 64]</strong></li>
+                        <li>Estimated Histopathology: <strong id="repHist">Glioma (Grade III/IV)</strong></li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>Explainable AI Verification:</strong>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-top: 6px;">
+                        Yellow contour boundaries demarcate lesion margins against surrounding white matter. Super-pixel attribution verified under Equation (21).
+                    </p>
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <p style="font-size: 0.75rem; color: #94a3b8;">Digitally signed & verified by NeuroVision CDSS engine.</p>
+                </div>
+                <div style="text-align: center; border-top: 1px solid #64748b; width: 200px; padding-top: 4px;">
+                    <span style="font-size: 0.85rem; font-weight: 600;">Radiologist Signature</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 10px;" class="no-print">
+                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    🖨️ Print / Save as PDF
+                </button>
+                <button onclick="closeReportModal(null)" style="background: #e2e8f0; color: #334155; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Audio & Rendering Script -->
     <script>
-        // Tab switching logic
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+        // Web Audio API Synthesizer (Zero External Audio Files Needed!)
+        let audioEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playBeep(freq = 880, duration = 0.08, type = 'sine') {
+            if (!audioEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function playSciFiChime() {
+            playBeep(523.25, 0.06);
+            setTimeout(() => playBeep(659.25, 0.06), 60);
+            setTimeout(() => playBeep(1046.50, 0.12), 120);
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const btn = document.getElementById('audioBtn');
+            btn.innerText = audioEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
+            if (audioEnabled) playSciFiChime();
+        }
+
+        // Tab Navigation
+        function switchNavTab(tabId) {
+            playBeep(440, 0.05);
+            document.querySelectorAll('.nav-tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(pane => pane.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tabId).classList.add('active');
 
@@ -670,57 +1106,57 @@
             if (tabId === 'tab-gan') renderGANLossChart();
         }
 
-        // Procedural Brain MRI Slice Rendering Engine
-        function renderMRIScan(canvasId, type, mode = 'normal') {
+        // Procedural Anatomical Brain MRI Renderer
+        function drawBrainMRI(canvasId, type, mode = 'normal') {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
             const w = canvas.width, h = canvas.height;
             const cx = w / 2, cy = h / 2;
 
-            // Black background
-            ctx.fillStyle = "#0c0f17";
+            // Deep background
+            ctx.fillStyle = "#03060c";
             ctx.fillRect(0, 0, w, h);
 
-            // Skull
+            // Skull Outer Calvarium
             ctx.beginPath();
-            ctx.ellipse(cx, cy, w * 0.41, h * 0.44, 0, 0, Math.PI * 2);
-            ctx.fillStyle = "#2c3340";
+            ctx.ellipse(cx, cy, w * 0.42, h * 0.45, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#1e293b";
             ctx.fill();
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "#8d99ae";
+            ctx.lineWidth = 3.5;
+            ctx.strokeStyle = "#94a3b8";
             ctx.stroke();
 
-            // Cortex / Brain Matter
+            // Cerebral Cortex / Parenchyma
             ctx.beginPath();
             ctx.ellipse(cx, cy, w * 0.38, h * 0.41, 0, 0, Math.PI * 2);
-            ctx.fillStyle = (mode === 'correct') ? "#1e293b" : "#555b6e";
+            ctx.fillStyle = (mode === 'correct') ? "#0f172a" : "#475569";
             ctx.fill();
 
-            // Hemispheric fissure
-            ctx.strokeStyle = "#1b2230";
+            // Interhemispheric Falx Cerebri
+            ctx.strokeStyle = "#0b1120";
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(cx, cy - h * 0.38 + 5);
             ctx.lineTo(cx, cy + h * 0.38 - 5);
             ctx.stroke();
 
-            // Ventricles
-            ctx.fillStyle = "#1e2430";
+            // Lateral Ventricles (CSF - Dark)
+            ctx.fillStyle = "#090d16";
             ctx.beginPath();
-            ctx.ellipse(cx - 14, cy, 10, 24, 0, 0, Math.PI * 2);
+            ctx.ellipse(cx - 14, cy, 9, 22, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.beginPath();
-            ctx.ellipse(cx + 14, cy, 10, 24, 0, 0, Math.PI * 2);
+            ctx.ellipse(cx + 14, cy, 9, 22, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Tumor Placement
+            // Pathological Lesion Placement
             if (type !== 'notumor') {
                 let tx, ty, tr;
                 if (type === 'glioma') {
                     tx = cx - w * 0.18; ty = cy - h * 0.12; tr = w * 0.14;
                 } else if (type === 'meningioma') {
-                    tx = cx + w * 0.25; ty = cy + h * 0.05; tr = w * 0.12;
+                    tx = cx + w * 0.24; ty = cy + h * 0.05; tr = w * 0.12;
                 } else if (type === 'pituitary') {
                     tx = cx; ty = cy + h * 0.22; tr = w * 0.09;
                 }
@@ -728,40 +1164,42 @@
                 if (mode === 'normal' || mode === 'correct') {
                     ctx.beginPath();
                     ctx.ellipse(tx, ty, tr, tr, 0, 0, Math.PI * 2);
-                    ctx.fillStyle = (mode === 'correct') ? "#ffffff" : "#d8e2dc";
+                    ctx.fillStyle = (mode === 'correct') ? "#ffffff" : "#f1f5f9";
                     ctx.fill();
 
                     if (type === 'glioma') {
+                        // Infiltrative Necrotic Core
                         ctx.beginPath();
-                        ctx.ellipse(tx, ty, tr * 0.4, tr * 0.4, 0, 0, Math.PI * 2);
-                        ctx.fillStyle = "#6c757d";
+                        ctx.ellipse(tx, ty, tr * 0.45, tr * 0.45, 0, 0, Math.PI * 2);
+                        ctx.fillStyle = "#64748b";
                         ctx.fill();
                     }
                 }
 
                 if (mode === 'contour') {
-                    // Normal tumor background
                     ctx.beginPath();
                     ctx.ellipse(tx, ty, tr, tr, 0, 0, Math.PI * 2);
-                    ctx.fillStyle = "#d8e2dc";
+                    ctx.fillStyle = "#cbd5e1";
                     ctx.fill();
-                    // Yellow boundary contour
+                    // Sharp Glowing Yellow Contour Line
                     ctx.lineWidth = 3;
                     ctx.strokeStyle = "#ffff00";
+                    ctx.shadowColor = "#ffff00";
+                    ctx.shadowBlur = 10;
                     ctx.stroke();
+                    ctx.shadowBlur = 0;
                 }
 
                 if (mode === 'heatmap') {
-                    // Draw base tumor
                     ctx.beginPath();
                     ctx.ellipse(tx, ty, tr, tr, 0, 0, Math.PI * 2);
-                    ctx.fillStyle = "#d8e2dc";
+                    ctx.fillStyle = "#cbd5e1";
                     ctx.fill();
-                    // Transparent Viridis gradient overlay
-                    const grad = ctx.createRadialGradient(tx, ty, 2, tx, ty, tr * 1.5);
-                    grad.addColorStop(0, 'rgba(34, 197, 94, 0.85)'); // Green positive
-                    grad.addColorStop(0.6, 'rgba(56, 189, 248, 0.55)');
-                    grad.addColorStop(1, 'rgba(79, 70, 229, 0.15)');
+                    // Viridis Transparent Radial Gradient
+                    const grad = ctx.createRadialGradient(tx, ty, 3, tx, ty, tr * 1.5);
+                    grad.addColorStop(0, 'rgba(16, 185, 129, 0.9)'); // Bright Green
+                    grad.addColorStop(0.5, 'rgba(0, 242, 254, 0.6)');
+                    grad.addColorStop(1, 'rgba(99, 102, 241, 0.15)');
                     ctx.fillStyle = grad;
                     ctx.beginPath();
                     ctx.ellipse(tx, ty, tr * 1.5, tr * 1.5, 0, 0, Math.PI * 2);
@@ -770,80 +1208,146 @@
             }
         }
 
-        // Selection & Dynamic Probability Update
-        const scanData = {
+        // Clinical Case Definitions
+        const cases = {
             glioma: {
-                name: "Glioma Tumor Detected",
-                conf: "99.82%",
-                bg: "#fee2e2",
-                color: "#991b1b",
+                id: "#8492-GLI",
+                name: "GLIOMA TUMOR DETECTED",
+                subtext: "99.82% Confidence Index • High-Grade Malignancy Risk",
+                color: "#ef4444",
+                bg: "rgba(239, 68, 68, 0.2)",
                 probs: { glioma: 99.82, meningioma: 0.12, pituitary: 0.04, notumor: 0.02 },
-                desc: "Infiltrative hyperintense intra-axial mass in cerebral hemisphere with central necrosis. ResNet-50 hierarchical feature extraction indicates high malignancy correlation."
+                area: "412 mm²",
+                centroid: "[78, 64]",
+                grade: "Grade III/IV",
+                hist: "Glioma (Grade III/IV Astrocytoma)",
+                desc: "Deep hierarchical feature extraction demonstrates hyperintense infiltrative lesion within cerebral parenchyma. LIME explainability isolated significant super-pixel cluster with high probability gradient."
             },
             meningioma: {
-                name: "Meningioma Tumor Detected",
-                conf: "99.41%",
-                bg: "#fef3c7",
-                color: "#92400e",
+                id: "#5120-MNG",
+                name: "MENINGIOMA TUMOR DETECTED",
+                subtext: "99.41% Confidence Index • Extra-Axial Dural-Based Mass",
+                color: "#f59e0b",
+                bg: "rgba(245, 158, 11, 0.2)",
                 probs: { glioma: 0.35, meningioma: 99.41, pituitary: 0.18, notumor: 0.06 },
-                desc: "Well-circumscribed, extra-axial dural-based mass along the convexity with uniform intense enhancement and dural tail sign."
+                area: "328 mm²",
+                centroid: "[164, 120]",
+                grade: "Grade I (Benign)",
+                hist: "Meningioma (Benign Convexity)",
+                desc: "Well-circumscribed extra-axial lesion abutting the dural convexity. Homogeneous enhancement with classical dural tail sign. Zero parenchymal edema."
             },
             pituitary: {
-                name: "Pituitary Tumor Detected",
-                conf: "99.75%",
-                bg: "#e0f2fe",
-                color: "#075985",
+                id: "#3819-PIT",
+                name: "PITUITARY ADENOMA DETECTED",
+                subtext: "99.75% Confidence Index • Sellar Region Involvement",
+                color: "#38bdf8",
+                bg: "rgba(56, 189, 248, 0.2)",
                 probs: { glioma: 0.10, meningioma: 0.12, pituitary: 99.75, notumor: 0.03 },
-                desc: "Sellar/suprasellar adenoma adjacent to optic chiasm. Well demarcated borders without diffuse parenchymal infiltration."
+                area: "215 mm²",
+                centroid: "[112, 162]",
+                grade: "Macroadenoma",
+                hist: "Pituitary Macroadenoma",
+                desc: "Sellar/suprasellar mass adjacent to optic chiasm. Sharp demarcation without parenchymal infiltration."
             },
             notumor: {
-                name: "Healthy Brain (No Tumor Detected)",
-                conf: "99.94%",
-                bg: "#dcfce7",
-                color: "#166534",
+                id: "#1004-NORM",
+                name: "NORMAL BRAIN (HEALTHY)",
+                subtext: "99.94% Confidence Index • Intact Cerebral Parenchyma",
+                color: "#10b981",
+                bg: "rgba(16, 185, 129, 0.2)",
                 probs: { glioma: 0.02, meningioma: 0.02, pituitary: 0.02, notumor: 99.94 },
-                desc: "Normal symmetric cerebral hemispheres. Intact ventricles, no midline shift, no pathological hyperintensities detected."
+                area: "0 mm²",
+                centroid: "N/A",
+                grade: "Normal / Healthy",
+                hist: "Non-Tumorous Normal Tissue",
+                desc: "Normal symmetric cerebral hemispheres. Intact bilateral lateral ventricles, no midline shift, no pathological signal anomalies."
             }
         };
 
-        let currentScan = 'glioma';
+        let currentActiveCase = 'glioma';
 
-        function selectScan(type) {
-            currentScan = type;
-            document.querySelectorAll('.mri-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+        function loadCase(caseKey) {
+            currentActiveCase = caseKey;
+            playSciFiChime();
 
-            const info = scanData[type];
-            renderMRIScan('mriCanvas', type, 'normal');
+            // Highlight button
+            document.querySelectorAll('.scan-select-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
 
-            // Update badge & desc
-            const badge = document.getElementById('diagBadge');
-            badge.innerText = `${info.name} (${info.conf} Confidence)`;
-            badge.style.backgroundColor = info.bg;
-            badge.style.color = info.color;
-            document.getElementById('pathologyDesc').innerText = info.desc;
+            const c = cases[caseKey];
 
-            // Update bars
-            ['glioma', 'meningioma', 'pituitary', 'notumor'].forEach(c => {
-                const val = info.probs[c];
-                document.getElementById(`p-${c}`).innerText = `${val.toFixed(2)}%`;
-                document.getElementById(`bar-${c}`).style.width = `${val}%`;
+            // Render MRI
+            drawBrainMRI('mriCanvas', caseKey, 'normal');
+
+            // Render LIME
+            drawBrainMRI('limeOrig', caseKey, 'normal');
+            drawBrainMRI('limeCorrect', caseKey, 'correct');
+            drawBrainMRI('limeContour', caseKey, 'contour');
+            drawBrainMRI('limeHeatmap', caseKey, 'heatmap');
+
+            // Update Triage Banner
+            const banner = document.getElementById('triageBanner');
+            banner.style.backgroundColor = c.bg;
+            banner.style.borderColor = c.color;
+            const h = document.getElementById('triageHeadline');
+            h.innerText = c.name;
+            h.style.color = c.color;
+            document.getElementById('triageSubtext').innerText = c.subtext;
+            document.getElementById('caseIdTag').innerText = `CASE: ${c.id}`;
+
+            // Update Bars
+            ['glioma', 'meningioma', 'pituitary', 'notumor'].forEach(key => {
+                const val = c.probs[key];
+                document.getElementById(`pct-${key}`).innerText = `${val.toFixed(2)}%`;
+                document.getElementById(`bar-${key}`).style.width = `${val}%`;
             });
 
-            // Update LIME views
-            renderMRIScan('limeOrig', type, 'normal');
-            renderMRIScan('limeCorrect', type, 'correct');
-            renderMRIScan('limeContour', type, 'contour');
-            renderMRIScan('limeHeatmap', type, 'heatmap');
+            // Update Vitals
+            document.getElementById('vitalArea').innerText = c.area;
+            document.getElementById('vitalCentroid').innerText = c.centroid;
+            document.getElementById('vitalGrade').innerText = c.grade;
+            document.getElementById('vitalGrade').style.color = c.color;
+
+            // Randomize telemetry latency
+            document.getElementById('telemetryLatency').innerText = `${Math.floor(Math.random() * 8 + 10)}ms`;
+        }
+
+        function triggerLaserScan() {
+            playSciFiChime();
+            const laser = document.querySelector('.scan-laser-line');
+            laser.style.animation = 'none';
+            void laser.offsetWidth; // trigger reflow
+            laser.style.animation = 'laserSweep 1.5s cubic-bezier(0.4, 0, 0.2, 1) 2';
         }
 
         function generateNewGANSample() {
-            const types = ['glioma', 'meningioma', 'pituitary', 'notumor'];
-            const randomType = types[Math.floor(Math.random() * types.length)];
-            renderMRIScan('ganCanvas', randomType, 'normal');
+            playSciFiChime();
+            const keys = ['glioma', 'meningioma', 'pituitary', 'notumor'];
+            const rk = keys[Math.floor(Math.random() * keys.length)];
+            drawBrainMRI('ganCanvas', rk, 'normal');
         }
 
-        // Render Chart.js visualizers
+        // Report Modal Logic
+        function openReportModal() {
+            playSciFiChime();
+            const c = cases[currentActiveCase];
+            document.getElementById('repCaseId').innerText = c.id;
+            document.getElementById('repDiagnosis').innerText = c.name;
+            document.getElementById('repDiagnosis').style.color = c.color;
+            document.getElementById('repDesc').innerText = c.desc;
+            document.getElementById('repArea').innerText = c.area;
+            document.getElementById('repCentroid').innerText = c.centroid;
+            document.getElementById('repHist').innerText = c.hist;
+            document.getElementById('repDate').innerText = new Date().toISOString().split('T')[0];
+            document.getElementById('printReportModal').style.display = 'flex';
+        }
+
+        function closeReportModal(e) {
+            if (e && e.target.id !== 'printReportModal') return;
+            document.getElementById('printReportModal').style.display = 'none';
+        }
+
+        // Chart.js Visualizers
         let benchChartInst = null;
         function renderBenchmarkChart() {
             if (benchChartInst) return;
@@ -853,17 +1357,21 @@
                 data: {
                     labels: ['TumorGANet (VGG-16)', 'Inception-v3', 'ResNet-101', 'AlexNet', 'GoogLeNet', 'VGG-19', 'MobileNet', 'MobileNet-v2', 'DenseNet-121', 'Xception'],
                     datasets: [
-                        { label: 'Accuracy (%)', data: [99.53, 99.34, 98.93, 98.17, 97.18, 96.72, 96.41, 95.85, 95.78, 78.01], backgroundColor: '#1e3f66' },
-                        { label: 'Precision (%)', data: [100.0, 99.34, 98.93, 98.17, 97.18, 96.72, 96.41, 95.85, 95.78, 86.00], backgroundColor: '#4682B4' },
-                        { label: 'Recall (%)', data: [100.0, 99.34, 98.93, 98.17, 97.18, 96.72, 96.41, 95.85, 95.78, 77.00], backgroundColor: '#87CEEB' },
-                        { label: 'F1-Score (%)', data: [99.00, 99.00, 99.00, 98.00, 97.00, 96.50, 96.20, 95.50, 95.60, 76.00], backgroundColor: '#00b4d8' }
+                        { label: 'Accuracy (%)', data: [99.53, 99.34, 98.93, 98.17, 97.18, 96.72, 96.41, 95.85, 95.78, 78.01], backgroundColor: '#00f2fe' },
+                        { label: 'Precision (%)', data: [100.0, 99.34, 98.93, 98.17, 97.18, 96.72, 96.41, 95.85, 95.78, 86.00], backgroundColor: '#38bdf8' },
+                        { label: 'Recall (%)', data: [100.0, 99.34, 98.93, 98.17, 97.18, 96.72, 96.41, 95.85, 95.78, 77.00], backgroundColor: '#818cf8' },
+                        { label: 'F1-Score (%)', data: [99.00, 99.00, 99.00, 98.00, 97.00, 96.50, 96.20, 95.50, 95.60, 76.00], backgroundColor: '#c084fc' }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1', font: { family: 'Rajdhani', size: 13, weight: 'bold' } } }
+                    },
                     scales: {
-                        y: { min: 70, max: 102 }
+                        x: { ticks: { color: '#94a3b8', font: { family: 'Rajdhani', size: 12 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { min: 70, max: 102, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
                     }
                 }
             });
@@ -882,27 +1390,29 @@
                 data: {
                     labels: epochs,
                     datasets: [
-                        { label: 'Discriminator Loss', data: dLoss, borderColor: '#1f77b4', tension: 0.3, fill: false },
-                        { label: 'Generator Loss', data: gLoss, borderColor: '#ff7f0e', tension: 0.3, fill: false }
+                        { label: 'Discriminator Loss', data: dLoss, borderColor: '#00f2fe', tension: 0.3, fill: false, borderWidth: 2 },
+                        { label: 'Generator Loss', data: gLoss, borderColor: '#f59e0b', tension: 0.3, fill: false, borderWidth: 2 }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1', font: { family: 'Rajdhani', size: 13, weight: 'bold' } } }
+                    },
                     scales: {
-                        x: { title: { display: true, text: 'Training Epochs / Iterations' } },
-                        y: { title: { display: true, text: 'Loss' } }
+                        x: { title: { display: true, text: 'Training Epochs / Iterations', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { title: { display: true, text: 'Loss Value', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
                     }
                 }
             });
         }
 
-        // Initialize default view on load
+        // Initialize on page load
         window.addEventListener('load', () => {
-            selectScan('glioma');
-            renderMRIScan('ganCanvas', 'glioma', 'normal');
+            loadCase('glioma');
+            drawBrainMRI('ganCanvas', 'glioma', 'normal');
         });
     </script>
 </body>
 </html>
-

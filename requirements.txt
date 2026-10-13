@@ -26,6 +26,9 @@ lime>=0.2.0
 
 # Interactive Web Application & Clinical UI
 streamlit>=1.25.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
 
 # Progress bars & utilities
 tqdm>=4.65.0
