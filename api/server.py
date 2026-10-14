@@ -14,6 +14,10 @@ from typing import Dict, Any, Optional
 import numpy as np
 from PIL import Image
 import torch
+try:
+    import pydicom
+except ImportError:
+    pydicom = None
 import starlette.routing
 _orig_router_init = starlette.routing.Router.__init__
 def _compat_router_init(self, *args, **kwargs):
@@ -22,7 +26,7 @@ def _compat_router_init(self, *args, **kwargs):
     return _orig_router_init(self, *args, **kwargs)
 starlette.routing.Router.__init__ = _compat_router_init
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Body, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -35,6 +39,8 @@ from models.tumor_ganet import build_tumorganet
 from models.gan import BrainMRIGAN
 from evaluation.explainability import BrainMRILIMEExplainer
 from training.ablation import PUBLISHED_TABLE_7
+from api.storage import authenticate, create_audit_event, create_patient, create_report, create_scan, create_reset_token, create_session, create_user, delete_session, get_session, list_audit_events, list_patients, list_reports, list_scans, reset_password
+from api.mailer import send_email
 
 
 app = FastAPI(
@@ -51,6 +57,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def require_session(authorization: Optional[str]):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    user = get_session(authorization[7:])
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    return user
 
 # Initialize Models on target device
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -79,6 +93,33 @@ def numpy_to_base64(arr: np.ndarray) -> str:
     return pil_to_base64(pil_img)
 
 
+def dicom_to_image(contents: bytes) -> tuple[Image.Image, Dict[str, Any]]:
+    if pydicom is None:
+        raise RuntimeError("DICOM support is not installed. Run: pip install pydicom")
+    dataset = pydicom.dcmread(io.BytesIO(contents), force=True)
+    pixels = dataset.pixel_array
+    if pixels.ndim > 2:
+        pixels = pixels[0]
+    pixels = pixels.astype(np.float32)
+    low, high = float(pixels.min()), float(pixels.max())
+    if high > low:
+        pixels = (pixels - low) / (high - low) * 255.0
+    else:
+        pixels = np.zeros_like(pixels)
+    if getattr(dataset, "PhotometricInterpretation", "") == "MONOCHROME1":
+        pixels = 255.0 - pixels
+    image = Image.fromarray(pixels.astype(np.uint8)).convert("RGB")
+    metadata = {
+        "modality": str(getattr(dataset, "Modality", "MR")),
+        "study_description": str(getattr(dataset, "StudyDescription", "Brain MRI")),
+        "series_description": str(getattr(dataset, "SeriesDescription", "MRI series")),
+        "rows": int(getattr(dataset, "Rows", image.height)),
+        "columns": int(getattr(dataset, "Columns", image.width)),
+        "slice_thickness": str(getattr(dataset, "SliceThickness", "Unknown")),
+    }
+    return image, metadata
+
+
 @app.get("/")
 def root():
     return {
@@ -87,6 +128,140 @@ def root():
         "device": device,
         "classes": config.CLASSES
     }
+
+
+@app.post("/api/auth/login")
+def login(payload: Dict[str, str] = Body(...)):
+    user = authenticate(payload.get("username", ""), payload.get("password", ""))
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    token = create_session(user)
+    create_audit_event(user["id"], "login", "session", details="User signed in")
+    return {"access_token": token, "user": user}
+
+
+@app.post("/api/auth/signup")
+def signup(payload: Dict[str, str] = Body(...)):
+    try:
+        user = create_user(payload.get("name", ""), payload.get("email", ""), payload.get("password", ""))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    token = create_session(user)
+    create_audit_event(user["id"], "signup", "user", str(user["id"]), "Account created")
+    return {"access_token": token, "user": user}
+
+
+@app.post("/api/auth/forgot-password")
+def forgot_password(payload: Dict[str, str] = Body(...)):
+    email = payload.get("email", "").strip().lower()
+    token = create_reset_token(email)
+    if token:
+        result = send_email(email, "TumorGANet password reset", f"Use this password reset token within one hour:\n\n{token}\n")
+        response = {"message": "If an account exists for that email, reset instructions have been sent."}
+        if result["status"] == "not_configured":
+            response["development_token"] = token
+        return response
+    return {"message": "If an account exists for that email, reset instructions have been sent."}
+
+
+@app.post("/api/auth/reset-password")
+def reset_password_endpoint(payload: Dict[str, str] = Body(...)):
+    try:
+        changed = reset_password(payload.get("token", ""), payload.get("password", ""))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    if not changed:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    return {"message": "Password reset successfully"}
+
+
+@app.get("/api/auth/me")
+def current_user(authorization: Optional[str] = Header(default=None)):
+    return require_session(authorization)
+
+
+@app.post("/api/auth/logout")
+def logout(authorization: Optional[str] = Header(default=None)):
+    user = require_session(authorization)
+    delete_session(authorization[7:])
+    create_audit_event(user["id"], "logout", "session", details="User signed out")
+    return {"message": "Signed out"}
+
+
+@app.get("/api/patients")
+def patients(search: str = "", authorization: Optional[str] = Header(default=None)):
+    require_session(authorization)
+    return {"patients": list_patients(search)}
+
+
+@app.post("/api/patients")
+def add_patient(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(default=None)):
+    user = require_session(authorization)
+    patient = create_patient(payload)
+    create_audit_event(user["id"], "create", "patient", patient["id"], "Patient record created")
+    return patient
+
+
+@app.get("/api/scans")
+def scans(patient_id: Optional[str] = None, authorization: Optional[str] = Header(default=None)):
+    require_session(authorization)
+    return {"scans": list_scans(patient_id)}
+
+
+@app.post("/api/scans")
+def add_scan(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(default=None)):
+    user = require_session(authorization)
+    scan = create_scan(payload)
+    create_audit_event(user["id"], "create", "scan", str(scan["id"]), f"Prediction: {scan.get('prediction')}")
+    return scan
+
+
+@app.get("/api/reports")
+def reports(patient_id: Optional[str] = None, authorization: Optional[str] = Header(default=None)):
+    require_session(authorization)
+    return {"reports": list_reports(patient_id)}
+
+
+@app.post("/api/reports")
+def add_report(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(default=None)):
+    user = require_session(authorization)
+    report = create_report(payload)
+    create_audit_event(user["id"], "create", "report", str(report["id"]), f"Decision: {report.get('decision')}")
+    return report
+
+
+@app.get("/api/audit")
+def audit(authorization: Optional[str] = Header(default=None)):
+    user = require_session(authorization)
+    if user.get("role") not in {"admin", "doctor"}:
+        raise HTTPException(status_code=403, detail="Audit access is restricted to clinical staff")
+    return {"events": list_audit_events()}
+
+
+@app.post("/api/reports/email")
+def email_report(payload: Dict[str, Any] = Body(...), authorization: Optional[str] = Header(default=None)):
+    user = require_session(authorization)
+    report = create_report(payload)
+    create_audit_event(user["id"], "create", "report", str(report["id"]), "Preliminary report created")
+    if not user.get("email"):
+        return {"report": report, "email": {"status": "not_configured", "message": "No email address is associated with this account."}}
+    body = (
+        "TumorGANet preliminary MRI analysis report\n\n"
+        f"Patient: {payload.get('patient', {}).get('name', 'Unknown')}\n"
+        f"Patient ID: {payload.get('patient', {}).get('id', 'Unknown')}\n"
+        f"Doctor: {payload.get('doctor_name', 'Unknown')}\n"
+        f"Decision: {payload.get('decision', 'concur')}\n\n"
+        f"Notes: {payload.get('notes', '')}\n\n"
+        "This is an AI decision-support report and must be reviewed by a qualified clinician."
+    )
+    try:
+        delivery = send_email(user["email"], "TumorGANet MRI analysis report", body)
+    except Exception as error:
+        print(f"[EMAIL] Delivery failed for {user['email']}: {type(error).__name__}: {error}")
+        delivery = {"status": "failed", "message": f"Email delivery failed: {error}"}
+    else:
+        print(f"[EMAIL] {delivery['status']} for {user['email']}: {delivery['message']}")
+    return {"report": report, "email": delivery}
 
 
 @app.post("/api/predict")
@@ -116,6 +291,32 @@ async def predict_mri(file: UploadFile = File(...)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/predict-dicom")
+async def predict_dicom(file: UploadFile = File(...)):
+    """Reads a DICOM MRI slice, normalizes it, and runs the same classifier."""
+    try:
+        contents = await file.read()
+        image, dicom_metadata = dicom_to_image(contents)
+        results = classifier.predict_image(image)
+        pclass = results["predicted_class"]
+        metadata = {
+            "glioma": {"grade": "Grade III/IV Astrocytoma", "risk": "CRITICAL", "est_area_mm2": 412},
+            "meningioma": {"grade": "Grade I (Benign)", "risk": "MODERATE", "est_area_mm2": 328},
+            "pituitary": {"grade": "Macroadenoma", "risk": "MODERATE", "est_area_mm2": 215},
+            "notumor": {"grade": "Normal Anatomy", "risk": "LOW", "est_area_mm2": 0}
+        }
+        return {
+            "prediction": pclass,
+            "confidence": float(results["confidence"]),
+            "probabilities": results["probabilities"],
+            "clinical_meta": metadata.get(pclass, {}),
+            "dicom_metadata": dicom_metadata,
+            "preview": pil_to_base64(image),
+        }
+    except Exception as error:
+        raise HTTPException(status_code=400, detail=f"DICOM processing failed: {error}")
 
 
 @app.post("/api/explain")
@@ -175,4 +376,3 @@ def get_benchmarks():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
-

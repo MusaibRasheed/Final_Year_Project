@@ -1,5 +1,86 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { playSciFiChime, playBeep, toggleAudioState } from './audioSynth';
+import { API_BASE_URL, emailReport, fetchReports, fetchScans, login, requestPasswordReset, resetPassword, saveReport, saveScan, signup } from './services/api';
+
+function AuthScreen({ onAuthenticated }) {
+  const [mode, setMode] = useState('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const submit = async event => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      let result;
+      if (mode === 'login') result = await login(email, password);
+      if (mode === 'signup') result = await signup(name, email, password);
+      if (mode === 'forgot') {
+        result = await requestPasswordReset(email);
+        setMessage(result.development_token ? `Development reset token: ${result.development_token}` : result.message);
+        if (result.development_token) {
+          setResetToken(result.development_token);
+          setMode('reset');
+        }
+        return;
+      }
+      if (mode === 'reset') {
+        result = await resetPassword(resetToken, password);
+        setMessage(result.message);
+        setMode('login');
+        return;
+      }
+      onAuthenticated(result);
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const title = mode === 'signup' ? 'Create your clinical account' : mode === 'forgot' ? 'Recover your account' : mode === 'reset' ? 'Set a new password' : 'Welcome back';
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '1.15fr 0.85fr', background: 'radial-gradient(circle at 10% 20%, #0b2032 0%, #060913 52%, #03060c 100%)', color: '#e2e8f0' }}>
+      <section style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '8vw', borderRight: '1px solid rgba(0, 242, 254, 0.15)' }}>
+        <div style={{ color: '#00f2fe', fontSize: '0.8rem', letterSpacing: 3, fontWeight: 800 }}>NEUROVISION CDSS</div>
+        <h1 style={{ fontFamily: 'Orbitron', fontSize: 'clamp(2.3rem, 5vw, 5rem)', lineHeight: 1.05, margin: '18px 0', background: 'linear-gradient(90deg, #00f2fe, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Clinical intelligence for brain MRI.</h1>
+        <p style={{ color: '#94a3b8', maxWidth: 560, fontSize: '1.05rem', lineHeight: 1.7 }}>Securely review AI-assisted tumor classification, explainability visualizations, and clinician-approved reports in one modern workspace.</p>
+        <div style={{ display: 'flex', gap: 12, marginTop: 35, flexWrap: 'wrap' }}>
+          {['AI-assisted triage', 'Explainable results', 'Clinician review'].map(item => <span key={item} style={{ border: '1px solid rgba(0, 242, 254, 0.25)', color: '#7dd3fc', borderRadius: 20, padding: '8px 13px', fontSize: '0.78rem' }}>✦ {item}</span>)}
+        </div>
+      </section>
+      <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+        <form onSubmit={submit} style={{ width: 'min(420px, 100%)', background: 'rgba(15, 23, 42, 0.82)', border: '1px solid rgba(0, 242, 254, 0.25)', borderRadius: 18, padding: 34, boxShadow: '0 25px 80px rgba(0,0,0,0.4)' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 10 }}>🏥</div>
+          <h2 style={{ fontFamily: 'Orbitron', fontSize: '1.25rem', margin: '0 0 8px' }}>{title}</h2>
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: 25 }}>{mode === 'login' ? 'Sign in to access your secure workstation.' : mode === 'signup' ? 'Create an account for secure report delivery.' : 'We will help you regain access.'}</p>
+          {mode === 'signup' && <input value={name} onChange={e => setName(e.target.value)} required placeholder="Full name" style={authInputStyle} />}
+          {mode !== 'reset' && <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="Professional email" style={authInputStyle} />}
+          {mode === 'reset' && <input value={resetToken} onChange={e => setResetToken(e.target.value)} required placeholder="Reset token" style={authInputStyle} />}
+          {mode !== 'forgot' && <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} placeholder={mode === 'reset' ? 'New password (8+ characters)' : 'Password (8+ characters)'} style={authInputStyle} />}
+          {error && <div style={{ color: '#fca5a5', fontSize: '0.8rem', marginBottom: 12 }}>{error}</div>}
+          {message && <div style={{ color: '#86efac', fontSize: '0.8rem', marginBottom: 12 }}>{message}</div>}
+          <button type="submit" disabled={busy} className="btn-neon" style={{ width: '100%', padding: 12 }}>{busy ? 'Please wait…' : mode === 'login' ? 'SIGN IN' : mode === 'signup' ? 'CREATE ACCOUNT' : mode === 'forgot' ? 'SEND RESET LINK' : 'RESET PASSWORD'}</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 18, gap: 10, flexWrap: 'wrap' }}>
+            {mode === 'login' && <><button type="button" onClick={() => setMode('signup')} style={authLinkStyle}>Create account</button><button type="button" onClick={() => setMode('forgot')} style={authLinkStyle}>Forgot password?</button></>}
+            {mode !== 'login' && <button type="button" onClick={() => { setMode('login'); setError(''); setMessage(''); }} style={authLinkStyle}>Back to sign in</button>}
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.68rem', marginTop: 25, lineHeight: 1.5 }}>AI results are decision-support only. All findings require review by a qualified clinician.</div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+const authInputStyle = { width: '100%', boxSizing: 'border-box', marginBottom: 12, background: '#070c18', border: '1px solid rgba(148, 163, 184, 0.25)', color: '#fff', padding: '12px 13px', borderRadius: 7, fontSize: '0.9rem' };
+const authLinkStyle = { background: 'none', border: 'none', color: '#67e8f9', cursor: 'pointer', padding: 0, fontSize: '0.78rem' };
 
 // Hospital Patient Queue Database
 const PATIENT_QUEUE = [
@@ -77,8 +158,18 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('diag');
   const [patientQueue, setPatientQueue] = useState(PATIENT_QUEUE);
   const [currentPatient, setCurrentPatient] = useState(PATIENT_QUEUE[0]);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [viewerZoom, setViewerZoom] = useState(1);
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('tumorganet.accessToken') || '');
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('tumorganet.user') || 'null'); } catch { return null; }
+  });
+  const [loginUsername, setLoginUsername] = useState('admin');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [audioOn, setAudioOn] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
+  const [analysisError, setAnalysisError] = useState('');
   const [showReport, setShowReport] = useState(false);
   const [benchSubTab, setBenchSubTab] = useState('models');
 
@@ -100,6 +191,15 @@ export default function App() {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [backendStatus, setBackendStatus] = useState('standby'); // 'connected' | 'offline' | 'standby'
+  const [scanHistory, setScanHistory] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tumorganet.scanHistory') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [backendHistory, setBackendHistory] = useState({ scans: [], reports: [], loading: false, error: '' });
+  const [compareScanIds, setCompareScanIds] = useState([]);
 
   // Canvas Refs
   const canvasRef = useRef(null);
@@ -285,6 +385,106 @@ export default function App() {
     renderAllCanvases(currentPatient);
   }, [currentPatient, brightness, contrast, caliperStart, caliperEnd]);
 
+  useEffect(() => {
+    localStorage.setItem('tumorganet.scanHistory', JSON.stringify(scanHistory));
+  }, [scanHistory]);
+
+  useEffect(() => {
+    if (!authToken) return;
+    setBackendHistory(prev => ({ ...prev, loading: true, error: '' }));
+    Promise.all([fetchScans(authToken), fetchReports(authToken)])
+      .then(([scansResult, reportsResult]) => setBackendHistory({ scans: scansResult.scans || [], reports: reportsResult.reports || [], loading: false, error: '' }))
+      .catch(error => {
+        if (/expired|authentication required|invalid session/i.test(error.message)) {
+          localStorage.removeItem('tumorganet.accessToken');
+          localStorage.removeItem('tumorganet.user');
+          setAuthToken('');
+          setCurrentUser(null);
+          setBackendHistory({ scans: [], reports: [], loading: false, error: '' });
+          return;
+        }
+        setBackendHistory({ scans: [], reports: [], loading: false, error: error.message });
+      });
+  }, [authToken]);
+
+  const saveScanToHistory = (patient) => {
+    setScanHistory(prev => [{
+      id: patient.id,
+      name: patient.name,
+      diagnosis: patient.diagnosis,
+      confidence: Math.max(...Object.values(patient.probs || {})),
+      analyzedAt: new Date().toISOString()
+    }, ...prev.filter(item => item.id !== patient.id)].slice(0, 25));
+    if (authToken) {
+      const scanPayload = {
+        patient: { id: patient.id, name: patient.name, age: patient.age, gender: patient.gender, history: patient.history },
+        filename: patient.name,
+        prediction: patient.diagnosis,
+        confidence: Math.max(...Object.values(patient.probs || {})),
+        probabilities: JSON.stringify(patient.probs || {}),
+        metadata: JSON.stringify({ area: patient.area, centroid: patient.centroid, grade: patient.grade })
+      };
+      saveScan(scanPayload, authToken).then(savedScan => setBackendHistory(prev => ({ ...prev, scans: [savedScan, ...prev.scans] }))).catch(() => setAnalysisError('Result was saved locally, but could not be synchronized with the backend.'));
+      emailReport({
+        patient: scanPayload.patient,
+        doctor_name: currentUser?.display_name || currentUser?.email || 'TumorGANet user',
+        decision: 'pending_review',
+        notes: `Automatic preliminary report for ${patient.name}. Prediction: ${patient.diagnosis}. Confidence: ${Math.max(...Object.values(patient.probs || {})).toFixed(2)}%. This result requires clinician review.`
+      }, authToken).then(result => {
+        if (result.email?.status === 'sent') setAnalysisError('Preliminary report emailed successfully.');
+        if (result.email?.status === 'not_configured') setAnalysisError('Report saved, but email delivery is not configured on the backend.');
+        if (result.email?.status === 'failed') setAnalysisError(`Report saved, but email delivery failed: ${result.email.message}`);
+      }).catch(error => setAnalysisError(`Report was saved, but automatic email delivery failed: ${error.message}`));
+    }
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setLoginError('');
+    try {
+      const result = await login(loginUsername, loginPassword);
+      setAuthToken(result.access_token);
+      setCurrentUser(result.user);
+      localStorage.setItem('tumorganet.accessToken', result.access_token);
+      localStorage.setItem('tumorganet.user', JSON.stringify(result.user));
+      setLoginPassword('');
+    } catch (error) {
+      setLoginError(error.message);
+    }
+  };
+
+  const handleLogout = () => {
+    setAuthToken('');
+    setCurrentUser(null);
+    localStorage.removeItem('tumorganet.accessToken');
+    localStorage.removeItem('tumorganet.user');
+  };
+
+  const persistReport = async () => {
+    if (!authToken) return;
+    try {
+      await saveReport({
+        patient: { id: currentPatient.id, name: currentPatient.name, age: currentPatient.age, gender: currentPatient.gender, history: currentPatient.history },
+        doctor_name: doctorName,
+        decision: clinicalConcurrence,
+        notes: physicianNotes
+      }, authToken);
+    } catch (error) {
+      setAnalysisError(`Report could not be saved remotely: ${error.message}`);
+    }
+  };
+
+  const handleAuthenticated = result => {
+    setAuthToken(result.access_token);
+    setCurrentUser(result.user);
+    localStorage.setItem('tumorganet.accessToken', result.access_token);
+    localStorage.setItem('tumorganet.user', JSON.stringify(result.user));
+  };
+
+  if (!authToken || !currentUser) {
+    return <AuthScreen onAuthenticated={handleAuthenticated} />;
+  }
+
   const selectPatient = (pt) => {
     setCurrentPatient(pt);
     setCaliperStart(null);
@@ -339,6 +539,73 @@ export default function App() {
   // File Upload & Scan Analysis
   const handleFileSelect = (file) => {
     if (!file) return;
+    setAnalysisError('');
+
+    const supportedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    const isDicom = file.name.toLowerCase().endsWith('.dcm') || file.type === 'application/dicom';
+    const maxSizeBytes = 20 * 1024 * 1024;
+    if (!isDicom && !supportedTypes.includes(file.type)) {
+      setAnalysisError('Unsupported file type. Please choose a DICOM, PNG, JPG, or WEBP MRI image.');
+      return;
+    }
+    if (file.size > maxSizeBytes) {
+      setAnalysisError('The selected MRI is larger than 20 MB. Please choose a smaller image.');
+      return;
+    }
+
+    if (isDicom) {
+      setIsScanning(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      fetch(`${API_BASE_URL}/api/predict-dicom`, { method: 'POST', body: formData })
+        .then(async response => {
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.detail || `DICOM analysis failed (${response.status})`);
+          return result;
+        })
+        .then(result => {
+          const img = new Image();
+          img.onload = () => {
+            const meta = result.clinical_meta || {};
+            const pclass = result.prediction || 'glioma';
+            const fileBaseName = file.name.replace(/\.[^/.]+$/, '').toUpperCase().slice(0, 20);
+            const patient = {
+              id: `PT-${Math.floor(1000 + Math.random() * 9000)}`,
+              name: `DICOM: ${fileBaseName}`,
+              age: 49,
+              gender: 'Clinical Case',
+              triage: meta.risk === 'CRITICAL' ? 'STAT / CRITICAL' : meta.risk === 'MODERATE' ? 'PRIORITY' : 'NORMAL CONTROL',
+              triageColor: meta.risk === 'CRITICAL' ? '#ef4444' : meta.risk === 'MODERATE' ? '#f59e0b' : '#10b981',
+              history: `DICOM upload: ${file.name}. ${result.dicom_metadata?.study_description || 'Brain MRI study'}.`,
+              type: 'custom',
+              isLocalUpload: true,
+              customImageSrc: result.preview,
+              customImgObj: img,
+              diagnosis: `${pclass.toUpperCase()} (${meta.grade || 'Confirmed'})`,
+              subtext: `${(result.confidence * 100).toFixed(2)}% AI Confidence • DICOM backend`,
+              probs: result.probabilities,
+              area: `${meta.est_area_mm2 || 0} mm²`,
+              centroid: 'Backend-estimated',
+              grade: meta.grade || 'Confirmed via TumorGANet',
+              desc: `DICOM metadata parsed successfully. Modality: ${result.dicom_metadata?.modality || 'MR'}; image dimensions: ${result.dicom_metadata?.columns || '?'} × ${result.dicom_metadata?.rows || '?'}.`
+            };
+            setPatientQueue(prev => [patient, ...prev]);
+            setCurrentPatient(patient);
+            setBackendStatus('connected');
+            saveScanToHistory(patient);
+            renderAllCanvases(patient);
+            setIsScanning(false);
+          };
+          img.src = result.preview;
+        })
+        .catch(error => {
+          setBackendStatus('offline');
+          setAnalysisError(`DICOM analysis unavailable: ${error.message}. Install pydicom and start the backend.`);
+          setIsScanning(false);
+        });
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target.result;
@@ -384,6 +651,7 @@ export default function App() {
 
   const runAIAnalysis = async (file, patient, img) => {
     setIsScanning(true);
+    setAnalysisError('');
     playSciFiChime();
 
     // 1. Pixel inspection to find hyperintense signal cluster
@@ -431,16 +699,23 @@ export default function App() {
       formData.append('file', file);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      // Model loading/inference can take longer than a normal API request,
+      // especially on CPU. Do not switch to the demo fallback too quickly.
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      const res = await fetch('http://localhost:8000/api/predict', {
+      const res = await fetch(`${API_BASE_URL}/api/predict`, {
         method: 'POST',
         body: formData,
         signal: controller.signal
       });
       clearTimeout(timeoutId);
 
-      if (res.ok) {
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}));
+        throw new Error(errorBody.detail || `Prediction request failed (${res.status})`);
+      }
+
+      {
         const data = await res.json();
         backendSuccess = true;
         setBackendStatus('connected');
@@ -463,10 +738,15 @@ export default function App() {
 
         setPatientQueue(prev => prev.map(p => p.id === patient.id ? updated : p));
         setCurrentPatient(updated);
+        saveScanToHistory(updated);
         renderAllCanvases(updated);
       }
     } catch (err) {
       // Backend not running; fallback gracefully
+      const reason = err?.name === 'AbortError'
+        ? 'The AI analysis took longer than 30 seconds.'
+        : err?.message || 'The prediction request failed.';
+      setAnalysisError(`Backend analysis unavailable: ${reason} Showing the local demonstration result instead.`);
     }
 
     if (!backendSuccess) {
@@ -512,6 +792,7 @@ export default function App() {
 
       setPatientQueue(prev => prev.map(p => p.id === patient.id ? updated : p));
       setCurrentPatient(updated);
+      saveScanToHistory(updated);
       renderAllCanvases(updated);
     }
 
@@ -537,6 +818,21 @@ export default function App() {
           <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '6px 14px', borderRadius: 20, border: '1px solid var(--border-glow)', fontSize: '0.85rem', fontFamily: 'Rajdhani' }}>
             <span style={{ color: '#10b981', fontWeight: 700 }}>● PACS LINK: CONNECTED</span> • 3.0T MRI
           </div>
+          {currentUser ? (
+            <button
+              onClick={handleLogout}
+              title="Sign out"
+              style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#34d399', padding: '6px 10px', borderRadius: 20, cursor: 'pointer', fontFamily: 'Rajdhani', fontWeight: 700 }}
+            >
+              👤 {currentUser.username} ({currentUser.role}) · Sign out
+            </button>
+          ) : (
+            <form onSubmit={handleLogin} style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+              <input value={loginUsername} onChange={e => setLoginUsername(e.target.value)} placeholder="User" aria-label="Username" style={{ width: 70, background: '#070c18', border: '1px solid rgba(0, 242, 254, 0.25)', color: '#fff', padding: '6px 7px', borderRadius: 5, fontSize: '0.72rem' }} />
+              <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="Password" aria-label="Password" style={{ width: 80, background: '#070c18', border: '1px solid rgba(0, 242, 254, 0.25)', color: '#fff', padding: '6px 7px', borderRadius: 5, fontSize: '0.72rem' }} />
+              <button type="submit" className="radio-tool-btn">Sign in</button>
+            </form>
+          )}
           <button
             onClick={() => { const s = toggleAudioState(); setAudioOn(s); }}
             style={{ background: 'rgba(0, 242, 254, 0.1)', border: '1px solid var(--border-glow)', color: '#00f2fe', padding: '6px 14px', borderRadius: 20, cursor: 'pointer', fontFamily: 'Rajdhani', fontWeight: 700 }}
@@ -545,6 +841,12 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {loginError && (
+        <div style={{ maxWidth: 1440, margin: '10px auto 0', padding: '0 1.5rem', color: '#fca5a5', fontSize: '0.8rem', textAlign: 'right' }}>
+          Sign-in failed: {loginError}. Set TUMORGANET_ADMIN_PASSWORD for the backend admin account.
+        </div>
+      )}
 
       {/* Main Container */}
       <main style={{ maxWidth: 1440, margin: '1.5rem auto', padding: '0 1.5rem' }}>
@@ -555,7 +857,8 @@ export default function App() {
             { id: 'diag', label: '🩺 01. CLINICAL WORKSTATION' },
             { id: 'lime', label: '🔍 02. EXPLAINABLE AI (LIME)' },
             { id: 'bench', label: '📊 03. RESEARCH BENCHMARKS' },
-            { id: 'gan', label: '🎨 04. DCGAN STUDIO' }
+            { id: 'gan', label: '🎨 04. DCGAN STUDIO' },
+            { id: 'history', label: '🗂️ 05. SCAN HISTORY' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -567,6 +870,47 @@ export default function App() {
           ))}
         </div>
 
+        {/* TAB 5: Persistent Scan and Report History */}
+        <div style={{ display: activeTab === 'history' ? 'block' : 'none' }}>
+          <div className="hud-card">
+            <div className="hud-title">
+              <span>🗂️ PERSISTENT SCAN & REPORT HISTORY</span>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{backendHistory.scans.length} SCANS • {backendHistory.reports.length} REPORTS</span>
+            </div>
+            {backendHistory.loading && <p style={{ color: '#94a3b8' }}>Loading records from the backend…</p>}
+            {backendHistory.error && <p style={{ color: '#fca5a5' }}>Could not load backend history: {backendHistory.error}</p>}
+            {!backendHistory.loading && !backendHistory.error && backendHistory.scans.length === 0 && (
+              <p style={{ color: '#94a3b8' }}>No synchronized scans yet. Analyze an MRI while signed in to create the first record.</p>
+            )}
+            {backendHistory.scans.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(280px, 0.6fr)', gap: 18 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {backendHistory.scans.map(scan => {
+                    const selected = compareScanIds.includes(scan.id);
+                    return (
+                      <button key={scan.id} type="button" onClick={() => setCompareScanIds(prev => selected ? prev.filter(id => id !== scan.id) : prev.length < 2 ? [...prev, scan.id] : [prev[1], scan.id])} style={{ textAlign: 'left', cursor: 'pointer', color: '#e2e8f0', background: selected ? 'rgba(0,242,254,0.14)' : 'rgba(15,23,42,0.7)', border: `1px solid ${selected ? '#00f2fe' : 'rgba(148,163,184,0.2)'}`, borderRadius: 8, padding: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}><strong>{scan.prediction || 'Unclassified'}</strong><span style={{ color: '#67e8f9' }}>{Number(scan.confidence || 0).toFixed(2)}%</span></div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: 5 }}>{scan.filename} • Patient {scan.patient_id}</div>
+                        <div style={{ color: '#64748b', fontSize: '0.72rem', marginTop: 4 }}>{new Date(scan.created_at).toLocaleString()}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(56,189,248,0.25)', borderRadius: 10, padding: 16 }}>
+                  <div style={{ color: '#00f2fe', fontWeight: 700, marginBottom: 10 }}>SCAN COMPARISON</div>
+                  {compareScanIds.length < 2 ? <p style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Select two scans to compare their predictions and confidence.</p> : (() => {
+                    const first = backendHistory.scans.find(scan => scan.id === compareScanIds[0]);
+                    const second = backendHistory.scans.find(scan => scan.id === compareScanIds[1]);
+                    const confidenceDelta = Number(second?.confidence || 0) - Number(first?.confidence || 0);
+                    return <div style={{ color: '#cbd5e1', fontSize: '0.85rem', lineHeight: 1.7 }}><div><strong>Earlier:</strong> {first?.prediction} ({Number(first?.confidence || 0).toFixed(2)}%)</div><div><strong>Later:</strong> {second?.prediction} ({Number(second?.confidence || 0).toFixed(2)}%)</div><div><strong>Confidence change:</strong> <span style={{ color: confidenceDelta >= 0 ? '#86efac' : '#fbbf24' }}>{confidenceDelta >= 0 ? '+' : ''}{confidenceDelta.toFixed(2)}%</span></div></div>;
+                  })()}
+                  <div style={{ borderTop: '1px solid rgba(148,163,184,0.2)', marginTop: 16, paddingTop: 12, color: '#94a3b8', fontSize: '0.78rem' }}>Reports are stored separately and can be exported from the clinical workstation after physician sign-off.</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* TAB 1: Clinical Diagnosis Workstation (3-Column Doctor Layout) */}
         <div style={{ display: activeTab === 'diag' ? 'grid' : 'none', gridTemplateColumns: '300px 1fr 380px', gap: '1.5rem' }}>
 
@@ -574,11 +918,61 @@ export default function App() {
           <div className="hud-card" style={{ padding: '1.2rem' }}>
             <div className="hud-title" style={{ fontSize: '0.95rem' }}>
               <span>📋 PACS PATIENT QUEUE</span>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>4 ACTIVE</span>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{patientQueue.length} ACTIVE</span>
+            </div>
+
+            {/* MRI Upload */}
+            <input
+              ref={fileInputRef}
+              type="file"
+                accept=".dcm,application/dicom,image/png,image/jpeg,image/jpg,image/webp"
+              style={{ display: 'none' }}
+              onChange={e => {
+                handleFileSelect(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            <div
+              onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={e => {
+                e.preventDefault();
+                setIsDragging(false);
+                handleFileSelect(e.dataTransfer.files?.[0]);
+              }}
+              style={{
+                margin: '12px 0',
+                padding: '14px 10px',
+                textAlign: 'center',
+                border: `1px dashed ${isDragging ? '#00f2fe' : 'rgba(0, 242, 254, 0.45)'}`,
+                borderRadius: 8,
+                background: isDragging ? 'rgba(0, 242, 254, 0.15)' : 'rgba(0, 242, 254, 0.05)'
+              }}
+            >
+              <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginBottom: 8 }}>
+                Upload a brain MRI for AI analysis
+              </div>
+              <button
+                type="button"
+                className="btn-neon"
+                style={{ width: '100%', padding: '8px 10px', fontSize: '0.8rem' }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                📤 CHOOSE MRI IMAGE
+              </button>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 7 }}>
+                DICOM, PNG, JPG, or WEBP • or drag and drop here
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {PATIENT_QUEUE.map(pt => (
+              <input
+                value={patientSearch}
+                onChange={e => setPatientSearch(e.target.value)}
+                placeholder="Search patients or scan IDs..."
+                style={{ width: '100%', boxSizing: 'border-box', background: '#070c18', border: '1px solid rgba(0, 242, 254, 0.25)', color: '#fff', padding: '8px 10px', borderRadius: 6, fontSize: '0.8rem' }}
+              />
+              {patientQueue.filter(pt => `${pt.name} ${pt.id}`.toLowerCase().includes(patientSearch.toLowerCase())).map(pt => (
                 <div
                   key={pt.id}
                   className={`patient-card ${currentPatient.id === pt.id ? 'active' : ''}`}
@@ -593,7 +987,27 @@ export default function App() {
                   </span>
                 </div>
               ))}
+              {patientQueue.filter(pt => `${pt.name} ${pt.id}`.toLowerCase().includes(patientSearch.toLowerCase())).length === 0 && (
+                <div style={{ color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center', padding: 10 }}>No matching patients</div>
+              )}
             </div>
+
+            {analysisError && (
+              <div style={{ marginTop: 10, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid #f59e0b', color: '#fbbf24', padding: 8, borderRadius: 6, fontSize: '0.75rem' }}>
+                {analysisError}
+              </div>
+            )}
+
+            {scanHistory.length > 0 && (
+              <div style={{ marginTop: 12, color: '#94a3b8', fontSize: '0.72rem' }}>
+                <strong style={{ color: '#00f2fe' }}>LOCAL SCAN HISTORY</strong>
+                {scanHistory.slice(0, 3).map(scan => (
+                  <div key={scan.id} style={{ marginTop: 5, padding: 6, background: 'rgba(15, 23, 42, 0.6)', borderRadius: 5 }}>
+                    {scan.name} • {new Date(scan.analyzedAt).toLocaleString()}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div style={{ marginTop: 15, background: 'rgba(15, 23, 42, 0.6)', padding: 12, borderRadius: 8, border: '1px solid rgba(56, 189, 248, 0.2)', fontSize: '0.8rem' }}>
               <strong style={{ color: '#00f2fe' }}>Clinical History:</strong>
@@ -638,8 +1052,15 @@ export default function App() {
                 height="224"
                 onMouseDown={handleCanvasMouseDown}
                 onMouseUp={handleCanvasMouseUp}
-                style={{ borderRadius: 6, cursor: caliperActive ? 'crosshair' : 'default', width: 280, height: 280 }}
+                style={{ borderRadius: 6, cursor: caliperActive ? 'crosshair' : 'default', width: 280, height: 280, transform: `scale(${viewerZoom})`, transition: 'transform 0.2s ease' }}
               ></canvas>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10 }}>
+              <button className="radio-tool-btn" onClick={() => setViewerZoom(z => Math.max(1, +(z - 0.25).toFixed(2)))}>− Zoom</button>
+              <span style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '7px 4px' }}>{Math.round(viewerZoom * 100)}%</span>
+              <button className="radio-tool-btn" onClick={() => setViewerZoom(z => Math.min(2.5, +(z + 0.25).toFixed(2)))}>＋ Zoom</button>
+              <button className="radio-tool-btn" onClick={() => setViewerZoom(1)}>Reset</button>
             </div>
 
             {/* Caliper measurement display */}
@@ -725,7 +1146,7 @@ export default function App() {
             <button
               className="btn-neon"
               style={{ width: '100%', marginTop: 12, background: 'linear-gradient(135deg, #a855f7, #6366f1)', fontSize: '0.8rem', padding: '10px 14px' }}
-              onClick={() => { playSciFiChime(); setShowReport(true); }}
+              onClick={async () => { playSciFiChime(); await persistReport(); setShowReport(true); }}
             >
               🖨️ EXPORT CLINICAL EHR REPORT
             </button>
