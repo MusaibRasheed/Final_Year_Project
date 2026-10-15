@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { playSciFiChime, playBeep, toggleAudioState } from './audioSynth';
-import { API_BASE_URL, emailReport, fetchReports, fetchScans, login, requestPasswordReset, resetPassword, saveReport, saveScan, signup } from './services/api';
+import { API_BASE_URL, createAdminUser, emailReport, fetchAdminActivity, fetchAdminUsers, fetchDoctors, fetchPatients, fetchReports, fetchScans, login, requestPasswordReset, resetAdminUserPassword, resetPassword, savePatient, saveReport, saveScan, signup, updateAdminUser } from './services/api';
 
 function AuthScreen({ onAuthenticated }) {
   const [mode, setMode] = useState('login');
@@ -171,6 +171,12 @@ export default function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const [showReport, setShowReport] = useState(false);
+  const [showPatientForm, setShowPatientForm] = useState(false);
+  const [patientForm, setPatientForm] = useState({ name: '', age: '', gender: '', history: '', symptoms: '', referringDoctor: '', location: '' });
+  const [patientFormBusy, setPatientFormBusy] = useState(false);
+  const [doctorSuggestions, setDoctorSuggestions] = useState([]);
+  const [doctorDisclaimer, setDoctorDisclaimer] = useState('');
+  const [doctorSearchUrl, setDoctorSearchUrl] = useState('');
   const [benchSubTab, setBenchSubTab] = useState('models');
 
   // Radiology Controls: Windowing & Caliper Measurement
@@ -200,6 +206,12 @@ export default function App() {
   });
   const [backendHistory, setBackendHistory] = useState({ scans: [], reports: [], loading: false, error: '' });
   const [compareScanIds, setCompareScanIds] = useState([]);
+  const canApproveReports = ['doctor', 'admin'].includes(currentUser?.role);
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminActivity, setAdminActivity] = useState([]);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [adminForm, setAdminForm] = useState({ name: '', email: '', password: '', role: 'technician' });
 
   // Canvas Refs
   const canvasRef = useRef(null);
@@ -392,8 +404,47 @@ export default function App() {
   useEffect(() => {
     if (!authToken) return;
     setBackendHistory(prev => ({ ...prev, loading: true, error: '' }));
-    Promise.all([fetchScans(authToken), fetchReports(authToken)])
-      .then(([scansResult, reportsResult]) => setBackendHistory({ scans: scansResult.scans || [], reports: reportsResult.reports || [], loading: false, error: '' }))
+    Promise.all([fetchPatients(authToken), fetchScans(authToken), fetchReports(authToken)])
+      .then(([patientsResult, scansResult, reportsResult]) => {
+        const scans = scansResult.scans || [];
+        const latestScanByPatient = new Map();
+        scans.forEach(scan => { if (!latestScanByPatient.has(scan.patient_id)) latestScanByPatient.set(scan.patient_id, scan); });
+        const parseStoredJson = value => {
+          if (!value) return {};
+          if (typeof value === 'object') return value;
+          try { return JSON.parse(value); } catch { return {}; }
+        };
+        const storedPatients = (patientsResult.patients || []).map(patient => {
+          const latestScan = latestScanByPatient.get(patient.id);
+          const probabilities = parseStoredJson(latestScan?.probabilities);
+          const metadata = parseStoredJson(latestScan?.metadata);
+          return {
+          ...patient,
+          type: 'notumor',
+          triage: latestScan ? 'SAVED ANALYSIS' : 'SAVED PATIENT',
+          triageColor: '#38bdf8',
+          diagnosis: latestScan?.prediction || 'MRI NOT ANALYZED',
+          subtext: latestScan ? `${Number(latestScan.confidence || 0).toFixed(2)}% AI Confidence • Saved analysis` : 'Select this patient and upload an MRI to begin analysis',
+          probs: probabilities.glioma !== undefined ? probabilities : { glioma: 0, meningioma: 0, pituitary: 0, notumor: 0 },
+          area: metadata.area || 'Pending',
+          centroid: metadata.centroid || 'Pending',
+          grade: metadata.grade || 'Pending analysis',
+          desc: latestScan ? 'Previously saved MRI analysis restored from the backend database.' : 'Patient record loaded from the backend database.',
+          imagePreview: latestScan?.image_preview || '',
+          customImageSrc: latestScan?.image_preview || undefined
+        }; });
+        setPatientQueue(previous => {
+          const storedIds = new Set(storedPatients.map(patient => patient.id));
+          return [...storedPatients, ...previous.filter(patient => !storedIds.has(patient.id))];
+        });
+        storedPatients.forEach(patient => {
+          if (!patient.imagePreview) return;
+          const image = new Image();
+          image.onload = () => setPatientQueue(previous => previous.map(item => item.id === patient.id ? { ...item, customImgObj: image } : item));
+          image.src = patient.imagePreview;
+        });
+        setBackendHistory({ scans, reports: reportsResult.reports || [], loading: false, error: '' });
+      })
       .catch(error => {
         if (/expired|authentication required|invalid session/i.test(error.message)) {
           localStorage.removeItem('tumorganet.accessToken');
@@ -407,6 +458,31 @@ export default function App() {
       });
   }, [authToken]);
 
+  useEffect(() => {
+    if (!authToken || currentUser?.role !== 'admin') return;
+    Promise.all([fetchAdminUsers(authToken), fetchAdminActivity(authToken)])
+      .then(([usersResult, activityResult]) => {
+        setAdminUsers(usersResult.users || []);
+        setAdminActivity(activityResult.events || []);
+      })
+      .catch(error => setAdminMessage(`Admin data could not be loaded: ${error.message}`));
+  }, [authToken, currentUser?.role]);
+
+  useEffect(() => {
+    const city = currentPatient?.location?.trim();
+    if (!authToken || !city) {
+      setDoctorSuggestions([]);
+      setDoctorDisclaimer('');
+      setDoctorSearchUrl('');
+      return;
+    }
+    const diagnosis = String(currentPatient.diagnosis || '').toLowerCase();
+    const specialty = diagnosis.includes('pituitary') ? 'neurosurgeon' : diagnosis.includes('glioma') ? 'neuro-oncologist' : 'neurosurgeon';
+    fetchDoctors(authToken, city, specialty)
+      .then(result => { setDoctorSuggestions(result.doctors || []); setDoctorSearchUrl(result.search_url || ''); setDoctorDisclaimer(result.disclaimer || ''); })
+      .catch(() => { setDoctorSuggestions([]); setDoctorSearchUrl(''); setDoctorDisclaimer('The nearby search could not be prepared.'); });
+  }, [authToken, currentPatient?.id, currentPatient?.location, currentPatient?.diagnosis]);
+
   const saveScanToHistory = (patient) => {
     setScanHistory(prev => [{
       id: patient.id,
@@ -416,16 +492,27 @@ export default function App() {
       analyzedAt: new Date().toISOString()
     }, ...prev.filter(item => item.id !== patient.id)].slice(0, 25));
     if (authToken) {
+      let imagePreview = patient.imagePreview || '';
+      if (!imagePreview && patient.customImgObj) {
+        const previewCanvas = document.createElement('canvas');
+        const maxDimension = 512;
+        const scale = Math.min(1, maxDimension / Math.max(patient.customImgObj.width, patient.customImgObj.height));
+        previewCanvas.width = Math.max(1, Math.round(patient.customImgObj.width * scale));
+        previewCanvas.height = Math.max(1, Math.round(patient.customImgObj.height * scale));
+        previewCanvas.getContext('2d').drawImage(patient.customImgObj, 0, 0, previewCanvas.width, previewCanvas.height);
+        imagePreview = previewCanvas.toDataURL('image/jpeg', 0.65);
+      }
       const scanPayload = {
-        patient: { id: patient.id, name: patient.name, age: patient.age, gender: patient.gender, history: patient.history },
+        patient: { id: patient.id, name: patient.name, age: patient.age, gender: patient.gender, history: patient.history, symptoms: patient.symptoms, referring_doctor: patient.referring_doctor || patient.referringDoctor, location: patient.location },
         filename: patient.name,
         prediction: patient.diagnosis,
         confidence: Math.max(...Object.values(patient.probs || {})),
         probabilities: JSON.stringify(patient.probs || {}),
-        metadata: JSON.stringify({ area: patient.area, centroid: patient.centroid, grade: patient.grade })
+        metadata: JSON.stringify({ area: patient.area, centroid: patient.centroid, grade: patient.grade }),
+        image_preview: imagePreview
       };
       saveScan(scanPayload, authToken).then(savedScan => setBackendHistory(prev => ({ ...prev, scans: [savedScan, ...prev.scans] }))).catch(() => setAnalysisError('Result was saved locally, but could not be synchronized with the backend.'));
-      emailReport({
+      if (canApproveReports) emailReport({
         patient: scanPayload.patient,
         doctor_name: currentUser?.display_name || currentUser?.email || 'TumorGANet user',
         decision: 'pending_review',
@@ -464,10 +551,11 @@ export default function App() {
     if (!authToken) return;
     try {
       await saveReport({
-        patient: { id: currentPatient.id, name: currentPatient.name, age: currentPatient.age, gender: currentPatient.gender, history: currentPatient.history },
+        patient: { id: currentPatient.id, name: currentPatient.name, age: currentPatient.age, gender: currentPatient.gender, history: currentPatient.history, symptoms: currentPatient.symptoms, referring_doctor: currentPatient.referring_doctor, location: currentPatient.location },
         doctor_name: doctorName,
         decision: clinicalConcurrence,
-        notes: physicianNotes
+        notes: physicianNotes,
+        scan_id: currentPatient.scanId
       }, authToken);
     } catch (error) {
       setAnalysisError(`Report could not be saved remotely: ${error.message}`);
@@ -481,6 +569,63 @@ export default function App() {
     localStorage.setItem('tumorganet.user', JSON.stringify(result.user));
   };
 
+  const registerPatient = async event => {
+    event.preventDefault();
+    setPatientFormBusy(true);
+    setAnalysisError('');
+    try {
+      const saved = await savePatient({ name: patientForm.name, age: Number(patientForm.age), gender: patientForm.gender, history: patientForm.history, symptoms: patientForm.symptoms, referring_doctor: patientForm.referringDoctor, location: patientForm.location }, authToken);
+      const patient = { ...saved, type: 'notumor', triage: 'NEW PATIENT', triageColor: '#38bdf8', diagnosis: 'MRI NOT ANALYZED', subtext: 'Upload an MRI to begin AI analysis', probs: { glioma: 0, meningioma: 0, pituitary: 0, notumor: 0 }, area: 'Pending', centroid: 'Pending', grade: 'Pending analysis', desc: 'Patient registered and ready for MRI upload.' };
+      setPatientQueue(prev => [patient, ...prev.filter(item => item.id !== patient.id)]);
+      setCurrentPatient(patient);
+      setPatientForm({ name: '', age: '', gender: '', history: '', symptoms: '', referringDoctor: '', location: '' });
+      setShowPatientForm(false);
+      setActiveTab('diag');
+      setAnalysisError(`Patient ${patient.id} registered successfully.`);
+    } catch (error) {
+      setAnalysisError(`Patient registration failed: ${error.message}`);
+    } finally {
+      setPatientFormBusy(false);
+    }
+  };
+
+  const createManagedUser = async event => {
+    event.preventDefault();
+    setAdminBusy(true);
+    setAdminMessage('');
+    try {
+      const result = await createAdminUser({ name: adminForm.name, email: adminForm.email, password: adminForm.password, role: adminForm.role }, authToken);
+      setAdminUsers(previous => [result.user, ...previous]);
+      setAdminForm({ name: '', email: '', password: '', role: 'technician' });
+      setAdminMessage(`${result.user.role} account created successfully.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const changeManagedUser = async (user, updates) => {
+    try {
+      const result = await updateAdminUser(user.id, updates, authToken);
+      setAdminUsers(previous => previous.map(item => item.id === user.id ? result.user : item));
+      setAdminMessage(`Updated ${result.user.email}.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  };
+
+  const resetManagedUserPassword = async user => {
+    const password = window.prompt(`Enter a new password for ${user.email} (minimum 8 characters):`);
+    if (!password) return;
+    try {
+      const result = await resetAdminUserPassword(user.id, password, authToken);
+      setAdminMessage(result.message);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  };
+
   if (!authToken || !currentUser) {
     return <AuthScreen onAuthenticated={handleAuthenticated} />;
   }
@@ -492,6 +637,54 @@ export default function App() {
     setMeasuredDistanceMm(null);
     playSciFiChime();
     renderAllCanvases(pt);
+  };
+
+  const openStoredScan = (scan) => {
+    const basePatient = patientQueue.find(patient => patient.id === scan.patient_id) || {
+      id: scan.patient_id,
+      name: `Patient ${scan.patient_id}`,
+      age: '—',
+      gender: '—',
+      history: 'Stored analysis record',
+      symptoms: '',
+      referring_doctor: '',
+      location: ''
+    };
+    const parseStoredJson = value => {
+      if (!value) return {};
+      if (typeof value === 'object') return value;
+      try { return JSON.parse(value); } catch { return {}; }
+    };
+    const probabilities = parseStoredJson(scan.probabilities);
+    const metadata = parseStoredJson(scan.metadata);
+    const restoredPatient = {
+      ...basePatient,
+      triage: 'SAVED ANALYSIS',
+      triageColor: '#38bdf8',
+      diagnosis: scan.prediction || 'SAVED MRI ANALYSIS',
+      subtext: `${Number(scan.confidence || 0).toFixed(2)}% AI Confidence • Saved analysis`,
+      probs: probabilities.glioma !== undefined ? probabilities : { glioma: 0, meningioma: 0, pituitary: 0, notumor: 0 },
+      area: metadata.area || 'Stored result',
+      centroid: metadata.centroid || 'Stored result',
+      grade: metadata.grade || 'Stored result',
+      desc: 'Previously saved MRI analysis restored from the backend database.',
+      imagePreview: scan.image_preview || '',
+      customImageSrc: scan.image_preview || undefined
+    };
+    setCurrentPatient(restoredPatient);
+    setPatientQueue(previous => previous.map(patient => patient.id === restoredPatient.id ? restoredPatient : patient));
+    setActiveTab('diag');
+    setShowReport(true);
+    if (scan.image_preview) {
+      const image = new Image();
+      image.onload = () => {
+        const withImage = { ...restoredPatient, customImgObj: image };
+        setCurrentPatient(withImage);
+        setPatientQueue(previous => previous.map(patient => patient.id === withImage.id ? withImage : patient));
+        renderAllCanvases(withImage);
+      };
+      image.src = scan.image_preview;
+    }
   };
 
   // Window Presets
@@ -569,14 +762,16 @@ export default function App() {
             const meta = result.clinical_meta || {};
             const pclass = result.prediction || 'glioma';
             const fileBaseName = file.name.replace(/\.[^/.]+$/, '').toUpperCase().slice(0, 20);
+            const registeredPatient = currentPatient?.triage === 'NEW PATIENT' ? currentPatient : null;
             const patient = {
-              id: `PT-${Math.floor(1000 + Math.random() * 9000)}`,
-              name: `DICOM: ${fileBaseName}`,
-              age: 49,
-              gender: 'Clinical Case',
+              ...registeredPatient,
+              id: registeredPatient?.id || `PT-${Math.floor(1000 + Math.random() * 9000)}`,
+              name: registeredPatient?.name || `DICOM: ${fileBaseName}`,
+              age: registeredPatient?.age || 49,
+              gender: registeredPatient?.gender || 'Clinical Case',
               triage: meta.risk === 'CRITICAL' ? 'STAT / CRITICAL' : meta.risk === 'MODERATE' ? 'PRIORITY' : 'NORMAL CONTROL',
               triageColor: meta.risk === 'CRITICAL' ? '#ef4444' : meta.risk === 'MODERATE' ? '#f59e0b' : '#10b981',
-              history: `DICOM upload: ${file.name}. ${result.dicom_metadata?.study_description || 'Brain MRI study'}.`,
+              history: registeredPatient?.history || `DICOM upload: ${file.name}. ${result.dicom_metadata?.study_description || 'Brain MRI study'}.`,
               type: 'custom',
               isLocalUpload: true,
               customImageSrc: result.preview,
@@ -613,15 +808,17 @@ export default function App() {
       img.onload = () => {
         const fileBaseName = file.name.replace(/\.[^/.]+$/, "").toUpperCase().slice(0, 20);
         const newId = `PT-${Math.floor(1000 + Math.random() * 9000)}`;
+        const registeredPatient = currentPatient?.triage === 'NEW PATIENT' ? currentPatient : null;
 
         const newPatient = {
-          id: newId,
-          name: `Scan: ${fileBaseName}`,
-          age: 49,
-          gender: 'Clinical Case',
+          ...registeredPatient,
+          id: registeredPatient?.id || newId,
+          name: registeredPatient?.name || `Scan: ${fileBaseName}`,
+          age: registeredPatient?.age || 49,
+          gender: registeredPatient?.gender || 'Clinical Case',
           triage: 'AI ANALYZING...',
           triageColor: '#00f2fe',
-          history: `Workstation upload: "${file.name}" (${(file.size / 1024).toFixed(1)} KB). Loaded directly from laptop storage.`,
+          history: registeredPatient?.history || `Workstation upload: "${file.name}" (${(file.size / 1024).toFixed(1)} KB). Loaded directly from laptop storage.`,
           type: 'custom',
           isLocalUpload: true,
           customImageSrc: dataUrl,
@@ -800,6 +997,9 @@ export default function App() {
     playSciFiChime();
   };
 
+  const reportSymptoms = currentPatient.symptoms || currentPatient.reportedSymptoms || '';
+  const reportReferringDoctor = currentPatient.referring_doctor || currentPatient.referringDoctor || currentPatient.referring_physician || '';
+
   return (
     <div>
       {/* Top Hospital Header */}
@@ -858,7 +1058,8 @@ export default function App() {
             { id: 'lime', label: '🔍 02. EXPLAINABLE AI (LIME)' },
             { id: 'bench', label: '📊 03. RESEARCH BENCHMARKS' },
             { id: 'gan', label: '🎨 04. DCGAN STUDIO' },
-            { id: 'history', label: '🗂️ 05. SCAN HISTORY' }
+            ...(currentUser?.role === 'admin' ? [{ id: 'admin', label: '⚙️ 05. ADMINISTRATION' }] : []),
+            { id: 'history', label: `🗂️ ${currentUser?.role === 'admin' ? '06' : '05'}. SCAN HISTORY` }
           ].map(tab => (
             <button
               key={tab.id}
@@ -869,6 +1070,36 @@ export default function App() {
             </button>
           ))}
         </div>
+
+        {currentUser?.role === 'admin' && activeTab === 'admin' && (
+          <div className="hud-card" style={{ marginBottom: 20 }}>
+            <div className="hud-title"><span>⚙️ ADMINISTRATION</span><span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{adminUsers.length} USERS</span></div>
+            {adminMessage && <div style={{ color: adminMessage.includes('successfully') || adminMessage.startsWith('Updated') ? '#86efac' : '#fbbf24', background: 'rgba(15,23,42,0.8)', padding: 10, borderRadius: 6, marginBottom: 14, fontSize: '0.82rem' }}>{adminMessage}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.8fr) minmax(0, 1.2fr)', gap: 18 }}>
+              <form onSubmit={createManagedUser} style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(56,189,248,0.25)', borderRadius: 10, padding: 16 }}>
+                <div style={{ color: '#00f2fe', fontWeight: 700, marginBottom: 12 }}>CREATE STAFF ACCOUNT</div>
+                <input required placeholder="Full name" value={adminForm.name} onChange={event => setAdminForm({ ...adminForm, name: event.target.value })} style={authInputStyle} />
+                <input required type="email" placeholder="Email" value={adminForm.email} onChange={event => setAdminForm({ ...adminForm, email: event.target.value })} style={authInputStyle} />
+                <input required minLength={8} type="password" placeholder="Temporary password (8+ characters)" value={adminForm.password} onChange={event => setAdminForm({ ...adminForm, password: event.target.value })} style={authInputStyle} />
+                <select value={adminForm.role} onChange={event => setAdminForm({ ...adminForm, role: event.target.value })} style={{ ...authInputStyle, color: '#fff' }}><option value="technician">Technician</option><option value="doctor">Doctor</option></select>
+                <button disabled={adminBusy} className="btn-neon" type="submit" style={{ width: '100%' }}>{adminBusy ? 'CREATING…' : 'CREATE ACCOUNT'}</button>
+              </form>
+              <div style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(56,189,248,0.25)', borderRadius: 10, padding: 16, overflowX: 'auto' }}>
+                <div style={{ color: '#00f2fe', fontWeight: 700, marginBottom: 12 }}>USER ACCOUNTS</div>
+                {adminUsers.map(user => <div key={user.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) 120px 100px auto', gap: 8, alignItems: 'center', borderBottom: '1px solid rgba(148,163,184,0.15)', padding: '9px 0', fontSize: '0.78rem' }}>
+                  <div><strong>{user.display_name || user.email}</strong><br /><span style={{ color: '#94a3b8' }}>{user.email}</span></div>
+                  <select value={user.role} disabled={user.id === currentUser.id} onChange={event => changeManagedUser(user, { role: event.target.value })} style={{ background: '#070c18', color: '#fff', border: '1px solid rgba(148,163,184,0.25)', padding: 5, borderRadius: 4 }}><option value="doctor">Doctor</option><option value="technician">Technician</option><option value="admin">Admin</option></select>
+                  <span style={{ color: user.active ? '#86efac' : '#fca5a5' }}>{user.active ? 'Active' : 'Disabled'}</span>
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}><button type="button" onClick={() => changeManagedUser(user, { active: !user.active })} disabled={user.id === currentUser.id} className="radio-tool-btn">{user.active ? 'Disable' : 'Enable'}</button><button type="button" onClick={() => resetManagedUserPassword(user)} className="radio-tool-btn">Reset password</button></div>
+                </div>)}
+              </div>
+            </div>
+            <div style={{ marginTop: 18, background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(56,189,248,0.25)', borderRadius: 10, padding: 16 }}>
+              <div style={{ color: '#00f2fe', fontWeight: 700, marginBottom: 10 }}>USER ACTIVITY</div>
+              {adminActivity.length === 0 ? <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>No activity recorded.</div> : adminActivity.slice(0, 25).map(event => <div key={event._id || `${event.createdAt}-${event.action}`} style={{ color: '#cbd5e1', fontSize: '0.78rem', borderBottom: '1px solid rgba(148,163,184,0.12)', padding: '6px 0' }}><strong>{event.action}</strong> • {event.entity_type} {event.entity_id ? `(${event.entity_id})` : ''}<br /><span style={{ color: '#64748b' }}>{event.details} • {event.createdAt ? new Date(event.createdAt).toLocaleString() : ''}</span></div>)}
+            </div>
+          </div>
+        )}
 
         {/* TAB 5: Persistent Scan and Report History */}
         <div style={{ display: activeTab === 'history' ? 'block' : 'none' }}>
@@ -888,11 +1119,12 @@ export default function App() {
                   {backendHistory.scans.map(scan => {
                     const selected = compareScanIds.includes(scan.id);
                     return (
-                      <button key={scan.id} type="button" onClick={() => setCompareScanIds(prev => selected ? prev.filter(id => id !== scan.id) : prev.length < 2 ? [...prev, scan.id] : [prev[1], scan.id])} style={{ textAlign: 'left', cursor: 'pointer', color: '#e2e8f0', background: selected ? 'rgba(0,242,254,0.14)' : 'rgba(15,23,42,0.7)', border: `1px solid ${selected ? '#00f2fe' : 'rgba(148,163,184,0.2)'}`, borderRadius: 8, padding: 12 }}>
+                      <div key={scan.id} onClick={() => setCompareScanIds(prev => selected ? prev.filter(id => id !== scan.id) : prev.length < 2 ? [...prev, scan.id] : [prev[1], scan.id])} style={{ textAlign: 'left', cursor: 'pointer', color: '#e2e8f0', background: selected ? 'rgba(0,242,254,0.14)' : 'rgba(15,23,42,0.7)', border: `1px solid ${selected ? '#00f2fe' : 'rgba(148,163,184,0.2)'}`, borderRadius: 8, padding: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}><strong>{scan.prediction || 'Unclassified'}</strong><span style={{ color: '#67e8f9' }}>{Number(scan.confidence || 0).toFixed(2)}%</span></div>
                         <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: 5 }}>{scan.filename} • Patient {scan.patient_id}</div>
                         <div style={{ color: '#64748b', fontSize: '0.72rem', marginTop: 4 }}>{new Date(scan.created_at).toLocaleString()}</div>
-                      </button>
+                        <button type="button" onClick={event => { event.stopPropagation(); openStoredScan(scan); }} style={{ marginTop: 8, background: '#0284c7', color: '#fff', border: 'none', borderRadius: 5, padding: '6px 10px', cursor: 'pointer', fontWeight: 700 }}>Open saved report</button>
+                      </div>
                     );
                   })}
                 </div>
@@ -920,6 +1152,10 @@ export default function App() {
               <span>📋 PACS PATIENT QUEUE</span>
               <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{patientQueue.length} ACTIVE</span>
             </div>
+
+            <button type="button" className="btn-neon" onClick={() => setShowPatientForm(true)} style={{ width: '100%', padding: '8px 10px', fontSize: '0.8rem', marginTop: 10 }}>
+              ＋ REGISTER NEW PATIENT
+            </button>
 
             {/* MRI Upload */}
             <input
@@ -1122,21 +1358,22 @@ export default function App() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.8rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input type="radio" name="concur" checked={clinicalConcurrence === 'concur'} onChange={() => setClinicalConcurrence('concur')} />
+                  <input disabled={!canApproveReports} type="radio" name="concur" checked={clinicalConcurrence === 'concur'} onChange={() => setClinicalConcurrence('concur')} />
                   <span>Concur with AI Diagnosis</span>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input type="radio" name="concur" checked={clinicalConcurrence === 'biopsy'} onChange={() => setClinicalConcurrence('biopsy')} />
+                  <input disabled={!canApproveReports} type="radio" name="concur" checked={clinicalConcurrence === 'biopsy'} onChange={() => setClinicalConcurrence('biopsy')} />
                   <span>Recommend Stereotactic Biopsy</span>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input type="radio" name="concur" checked={clinicalConcurrence === 'overrule'} onChange={() => setClinicalConcurrence('overrule')} />
+                  <input disabled={!canApproveReports} type="radio" name="concur" checked={clinicalConcurrence === 'overrule'} onChange={() => setClinicalConcurrence('overrule')} />
                   <span>Overrule AI Recommendation</span>
                 </label>
               </div>
 
               <textarea
                 value={physicianNotes}
+                disabled={!canApproveReports}
                 onChange={e => setPhysicianNotes(e.target.value)}
                 placeholder="Enter attending radiologist clinical impression notes..."
                 style={{ width: '100%', height: 50, marginTop: 8, background: '#070c18', border: '1px solid rgba(148, 163, 184, 0.2)', color: '#fff', fontSize: '0.75rem', padding: 6, borderRadius: 4, resize: 'none' }}
@@ -1146,9 +1383,10 @@ export default function App() {
             <button
               className="btn-neon"
               style={{ width: '100%', marginTop: 12, background: 'linear-gradient(135deg, #a855f7, #6366f1)', fontSize: '0.8rem', padding: '10px 14px' }}
+              disabled={!canApproveReports}
               onClick={async () => { playSciFiChime(); await persistReport(); setShowReport(true); }}
             >
-              🖨️ EXPORT CLINICAL EHR REPORT
+              {canApproveReports ? '🖨️ EXPORT CLINICAL EHR REPORT' : '🔒 DOCTOR/ADMIN APPROVAL REQUIRED'}
             </button>
           </div>
 
@@ -1297,6 +1535,26 @@ export default function App() {
 
       </main>
 
+      {showPatientForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 90 }} onClick={() => setShowPatientForm(false)}>
+          <form onSubmit={registerPatient} onClick={event => event.stopPropagation()} style={{ width: 'min(560px, 92%)', background: '#0f172a', border: '1px solid rgba(0,242,254,0.35)', borderRadius: 14, padding: 24, color: '#e2e8f0' }}>
+            <div className="hud-title" style={{ marginBottom: 16 }}>＋ REGISTER NEW PATIENT</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px', gap: 10 }}>
+              <input required placeholder="Full name" value={patientForm.name} onChange={event => setPatientForm({ ...patientForm, name: event.target.value })} style={authInputStyle} />
+              <input required type="number" min="0" max="130" placeholder="Age" value={patientForm.age} onChange={event => setPatientForm({ ...patientForm, age: event.target.value })} style={authInputStyle} />
+            </div>
+            <select required value={patientForm.gender} onChange={event => setPatientForm({ ...patientForm, gender: event.target.value })} style={{ ...authInputStyle, color: patientForm.gender ? '#fff' : '#94a3b8' }}>
+              <option value="">Select gender</option><option>Female</option><option>Male</option><option>Other</option><option>Prefer not to say</option>
+            </select>
+            <input placeholder="Referring doctor (optional)" value={patientForm.referringDoctor} onChange={event => setPatientForm({ ...patientForm, referringDoctor: event.target.value })} style={authInputStyle} />
+            <input placeholder="City or region for referral suggestions (optional)" value={patientForm.location} onChange={event => setPatientForm({ ...patientForm, location: event.target.value })} style={authInputStyle} />
+            <input placeholder="Main symptoms (optional)" value={patientForm.symptoms} onChange={event => setPatientForm({ ...patientForm, symptoms: event.target.value })} style={authInputStyle} />
+            <textarea required minLength={3} placeholder="Clinical history" value={patientForm.history} onChange={event => setPatientForm({ ...patientForm, history: event.target.value })} style={{ ...authInputStyle, height: 90, resize: 'vertical' }} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}><button type="button" onClick={() => setShowPatientForm(false)} className="radio-tool-btn">Cancel</button><button type="submit" disabled={patientFormBusy} className="btn-neon">{patientFormBusy ? 'SAVING…' : 'SAVE PATIENT'}</button></div>
+          </form>
+        </div>
+      )}
+
       {/* Official Structured Hospital Oncology Report Modal */}
       {showReport && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }} onClick={() => setShowReport(false)}>
@@ -1322,9 +1580,7 @@ export default function App() {
                 <p><strong>Age / Gender:</strong> {currentPatient.age} years / {currentPatient.gender}</p>
               </div>
               <div>
-                <p><strong>Exam Date:</strong> {new Date().toISOString().split('T')[0]}</p>
-                <p><strong>Study Modality:</strong> 3.0T Brain MRI (Axial Contrast-Enhanced)</p>
-                <p><strong>Referring Physician:</strong> Neurological Surgery Consultation</p>
+                <p><strong>Referring Doctor:</strong> {reportReferringDoctor || 'Not provided'}</p>
               </div>
             </div>
 
@@ -1332,6 +1588,10 @@ export default function App() {
             <div style={{ marginBottom: 16, fontSize: '0.85rem' }}>
               <strong>Clinical Indication & History:</strong>
               <p style={{ color: '#475569', marginTop: 2 }}>{currentPatient.history}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, background: '#f8fafc', padding: 10, borderRadius: 6 }}>
+                <div><strong>Reported Symptoms:</strong><br />{reportSymptoms || 'Not provided'}</div>
+                <div><strong>Referring Doctor:</strong><br />{reportReferringDoctor || 'Not provided'}</div>
+              </div>
             </div>
 
             {/* AI Quantitative Findings */}
@@ -1340,6 +1600,7 @@ export default function App() {
               <div style={{ fontSize: '1.05rem', fontWeight: 800, color: currentPatient.triageColor, marginBottom: 4 }}>
                 {currentPatient.diagnosis}
               </div>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 8px' }}><strong>Triage:</strong> {currentPatient.triage} &nbsp;•&nbsp; <strong>Assessment:</strong> {currentPatient.subtext}</p>
               <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>
                 {currentPatient.desc}
               </p>
@@ -1350,27 +1611,14 @@ export default function App() {
               </div>
             </div>
 
-            {/* Radiologist Evaluation & Sign-off */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0284c7', marginBottom: 4 }}>2. Attending Radiologist Clinical Impression:</div>
-              <p style={{ fontSize: '0.85rem', color: '#334155', fontStyle: 'italic', marginBottom: 8 }}>
-                "{physicianNotes}"
-              </p>
-              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                Clinical Decision: <strong>{clinicalConcurrence === 'concur' ? 'Concur with AI Diagnosis' : clinicalConcurrence === 'biopsy' ? 'Recommended Stereotactic Biopsy' : 'Overruled AI Finding'}</strong>
+            {currentPatient.location && doctorSearchUrl && (
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 16, fontSize: '0.82rem' }}>
+                <div style={{ fontWeight: 700, color: '#0284c7', marginBottom: 6 }}>Nearby Specialist Search</div>
+                <div><strong>Patient region:</strong> {currentPatient.location}</div>
+                <a href={doctorSearchUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 10, background: '#0284c7', color: '#fff', padding: '8px 12px', borderRadius: 5, textDecoration: 'none', fontWeight: 700 }}>Find nearby specialists on Google Maps</a>
+                <p style={{ color: '#64748b', margin: '8px 0 0', fontSize: '0.72rem' }}>This opens a location-based search. Verify credentials, specialty, availability, and emergency services before contacting a provider.</p>
               </div>
-            </div>
-
-            {/* Signature Block */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '2px solid #0f172a', paddingTop: 14 }}>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                Electronically Authenticated & Sealed • HIPAA Compliant CDSS Record
-              </div>
-              <div style={{ textAlign: 'center', width: 280 }}>
-                <div style={{ fontFamily: 'Rajdhani', fontWeight: 700, fontSize: '0.95rem' }}>{doctorName}</div>
-                <div style={{ borderTop: '1px solid #64748b', fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>Medical License #ONC-49201-MD</div>
-              </div>
-            </div>
+            )}
 
             {/* Buttons */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }} className="no-print">

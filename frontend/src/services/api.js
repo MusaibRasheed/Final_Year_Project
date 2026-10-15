@@ -28,6 +28,25 @@ export const resetPassword = (token, password) =>
 export const saveScan = (scan, token) =>
   apiRequest('/api/scans', { method: 'POST', body: JSON.stringify(scan) }, token);
 
+export const savePatient = (patient, token) =>
+  apiRequest('/api/patients', { method: 'POST', body: JSON.stringify(patient) }, token);
+
+export const fetchPatients = token => apiRequest('/api/patients', {}, token);
+
+export const fetchAdminUsers = token => apiRequest('/api/admin/users', {}, token);
+
+export const createAdminUser = (user, token) =>
+  apiRequest('/api/admin/users', { method: 'POST', body: JSON.stringify(user) }, token);
+
+export const updateAdminUser = (id, updates, token) =>
+  apiRequest(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }, token);
+
+export const resetAdminUserPassword = (id, password, token) =>
+  apiRequest(`/api/admin/users/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) }, token);
+
+export const fetchAdminActivity = (token, userId = '') =>
+  apiRequest(`/api/admin/activity${userId ? `?user_id=${encodeURIComponent(userId)}` : ''}`, {}, token);
+
 export const saveReport = (report, token) =>
   apiRequest('/api/reports', { method: 'POST', body: JSON.stringify(report) }, token);
 
@@ -41,5 +60,8 @@ export const fetchScans = (token, patientId = '') =>
   apiRequest(`/api/scans${patientId ? `?patient_id=${encodeURIComponent(patientId)}` : ''}`, {}, token);
 
 export const fetchAuditEvents = token => apiRequest('/api/audit', {}, token);
+
+export const fetchDoctors = (token, city = '', specialty = '') =>
+  apiRequest(`/api/doctors?city=${encodeURIComponent(city)}&specialty=${encodeURIComponent(specialty)}`, {}, token);
 
 export const logout = token => apiRequest('/api/auth/logout', { method: 'POST' }, token);
